@@ -1,0 +1,32 @@
+{% extends 'base.html.twig' %}
+
+{% block body %}
+	<h1>{{ app.user.username }}</h1>
+	<h3>Folders</h3>
+
+	<ul>
+		{% for folder in listFolders %}
+			<li>
+		    	<a href="{{ path('get_folder', {'folder_id': folder.id}) }}">{{ folder.name }}</a>
+		    </li>
+		{% else %}
+		    No folders have been found.
+		{% endfor %}
+	</ul>
+
+	<br>
+    <br>
+    <br>
+    <br>
+
+    <h3>Files</h3>
+    <ul>
+		{% for file in listFiles %}
+			<li>
+		    	 {{ file.name }}
+		    </li>
+		{% else %}
+		    No files have been found.
+		{% endfor %}
+	</ul>
+{% endblock %}

@@ -1,0 +1,156 @@
+{% trans_default_domain 'FOSUserBundle' %}
+
+<head>
+    <!-- Bootstrap core CSS -->
+    <link href="{{ asset('css/bootstrap/css/bootstrap.min.css') }}" rel="stylesheet">
+
+    <!-- Custom fonts for this template-->
+    <link href="{{ asset('css/font-awesome/css/font-awesome.min.css') }}" rel="stylesheet" type="text/css">
+    <link href='https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800' rel='stylesheet' type='text/css'>
+    <link href='https://fonts.googleapis.com/css?family=Merriweather:400,300,300italic,400italic,700,700italic,900,900italic' rel='stylesheet' type='text/css'>
+
+    <!-- Plugin CSS-->
+    <link href="{{ asset('css/magnific-popup/magnific-popup.css') }}" rel="stylesheet">
+    <link href="{{ asset('css/bootstrap-social-gh-pages/bootstrap-social.css') }}" rel="stylesheet">
+
+    <!-- Custom styles for this template -->
+    <link href="{{ asset('css/creative.min.css') }}" rel="stylesheet">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+
+    <link href="{{ asset('css/home-not-connected.css') }}" rel="stylesheet">
+
+    <!--<link href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.0/css/bootstrap.min.css" rel="stylesheet" id="bootstrap-css">-->
+    <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.0/js/bootstrap.min.js"></script>
+    <script src="//code.jquery.com/jquery-1.11.1.min.js"></script>
+
+    <title>Supfiles - Login</title>
+
+</head>
+
+
+<body>
+
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark fixed-top" id="mainNav">
+        <div class="container">
+            <a class="navbar-brand js-scroll-trigger" href="{{ path('index') }}">SupFiles</a>
+            <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarResponsive" aria-controls="navbarResponsive" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarResponsive">
+                {% if app.user is not null %}
+                    <ul class="navbar-nav mr-auto">
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ path('index') }}">Home <span class="sr-only">(current)</span></a>
+                        </li>
+                    </ul>
+                    <ul class="navbar-nav ml-auto">
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                {{ app.user.username }}
+                            </a>
+                            <div class="dropdown-menu dropdown-menu-right" aria-labelledby="navbarDropdown">
+                                <a class="dropdown-item" href="{{ path('fos_user_profile_edit') }}">Edit profile</a>
+                                <div class="dropdown-divider"></div>
+                                <a class="dropdown-item" href="{{ path('fos_user_security_logout') }}">Logout</a>
+                            </div>
+                        </li>
+                    </ul>
+                {% else %}
+                    <ul class="navbar-nav ml-auto">
+                        <li class="nav-item">
+                            <a class="nav-link js-scroll-trigger" href="{{ path('fos_user_security_login') }}">Sign in</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link js-scroll-trigger" href="{{ path('fos_user_registration_register') }}">Register</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link js-scroll-trigger" href="{{ path('index') }}#about">About</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link js-scroll-trigger" href="{{ path('index') }}#services">Services</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link js-scroll-trigger" href="{{ path('index') }}#contact">Contact</a>
+                        </li>
+                    </ul>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+
+    <header class="masthead text-center text-white d-flex">
+        <div class="container my-auto">
+            <div class="row main">
+                <div class="col-lg-3 mx-auto">
+
+                    <form action="{{ path("fos_user_security_check") }}" method="post">
+                        {% if csrf_token %}
+                            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
+                        {% endif %}
+
+
+
+                        <div class="form-group">
+                            <div class="cols-sm-10">
+                                <div class="input-group">
+                                    <!--<span class="input-group-addon"><i class="fa fa-user " aria-hidden="true"></i></span>-->
+                                    <input type="text" class="form-control" name="_username" id="username"  placeholder="Username or email" value="{{ last_username }}" required="required" />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <div class="cols-sm-10">
+                                <div class="input-group">
+                                    <!--<span class="input-group-addon"><i class="fa fa-lock fa-lg" aria-hidden="true"></i></span>-->
+                                    <input type="password" class="form-control" name="_password" id="password"  placeholder="Password" required="required"/>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <input type="checkbox" id="remember_me" name="_remember_me" value="on" />
+                            <label for="remember_me">Remember me</label>
+                        </div>
+                        <input class="btn btn-primary" type="submit" id="_submit" name="_submit" value="Login" />
+                    </form>
+                    <div style="margin:10px">
+                        <a href="{{ path('google_login') }}" ><button class="btn" style="background-color:#DD4B39;color:white;">Connect with Google</button></a>
+                    </div>
+                    <!--<div style="margin:10px">
+                        <a href="{{ path('facebook_login') }}"><button class="btn" style="background-color:#3B5998;color:white;">Connect with Facebook</button></a>
+                    </div>-->
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="mx-auto">
+                    <div class="text-left" style="color: red">
+                        {% if error %}
+                            <p>
+                                {{ error.messageKey|trans(error.messageData, 'security') }}
+                            </p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+
+        </div>
+    </header>
+
+
+    <!-- Bootstrap core JavaScript-->
+    <script src="{{ asset('css/jquery/jquery.min.js') }}"></script>
+    <script src="{{ asset('css/bootstrap/js/bootstrap.bundle.min.js') }}"></script>
+
+    <!-- Plugin JavaScript -->
+    <script src="{{ asset('css/jquery-easing/jquery.easing.min.js') }}"></script>
+    <script src="{{ asset('css/scrollreveal/scrollreveal.min.js') }}"></script>
+    <script src="{{ asset('css/magnific-popup/jquery.magnific-popup.min.js') }}"></script>
+
+    <!-- Custom scripts for this template -->
+    <script src="{{ asset('js/creative.min.js') }}"></script>
+
+
+</body>

@@ -1,0 +1,88 @@
+@font-face {
+    font-family: "gotham";
+    font-style: normal;
+    font-weight: 400;
+    src: url("../fonts/gothamrnd-book.ttf") format("truetype");
+}
+
+@font-face {
+    font-family: "gotham";
+    font-style: normal;
+    font-weight: 500;
+    src: url("../fonts/gothamrnd-medium.ttf") format("truetype");
+}
+
+@font-face {
+    font-family: "gotham";
+    font-style: normal;
+    font-weight: 700;
+    src: url("../fonts/gothamrnd-bold.woff") format("woff");
+}
+
+.persoTitle{
+    padding-left: 5%;
+}
+
+.persoUserMenu{
+    padding-right: 5%;
+}
+
+.persoBreadCrumb{
+    padding-bottom: 20px;
+}
+
+.persoButtonUpload{
+    padding-bottom: 15px;
+}
+
+.persoButtonEdit{
+    padding-top: 15px;
+}
+
+.persoDropDown{
+    color: #0b0b0b;
+    text-decoration:none;
+
+}
+
+* {
+    font-family: "gotham"
+}
+
+body {
+    background: #f5f5f5 !important;
+}
+
+.persoWhiteBlock{
+    margin-bottom: 20px;
+    padding: 20px 20px;
+    background-color: white;
+    border-left: 1px solid #efefef;
+    border-right: 1px solid #efefef;
+    border-bottom: 1px solid #e2e2e2;
+    box-shadow: 0 1px 0 0 rgba(0, 0, 0, 0.04);
+}
+
+.persoPaddingBlock{
+    padding-top: 2%;
+}
+
+.persoPaddingBlock2{
+    padding-top: 5%;
+}
+
+.persoNavbar{
+    border-bottom: 1px solid #e2e2e2;
+    box-shadow: 0 1px 0 0 rgba(0, 0, 0, 0.04);
+}
+
+i.persoOptions:hover {
+    color: rgb(21,126,251);
+}
+
+img.persoLogo {
+    margin-top: 10px;
+    padding-right: 5px;
+    height: 20px;
+    width: auto;
+}

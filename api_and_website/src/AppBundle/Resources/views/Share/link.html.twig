@@ -1,0 +1,15 @@
+{% extends 'base.html.twig' %}
+
+{% block body %}
+
+    <div class="persoPaddingBlock"></div>
+    <div class="container persoWhiteBlock rounded">
+
+        <div class="row d-flex justify-content-center">
+            <div>Link to share this folder: <a href="{{ absolute_url(path('shared_folder', {'hash': share.hash})) }}"/>{{ absolute_url(path('shared_folder', {'hash': share.hash})) }}</a></div>
+        </div>
+    </div>
+
+
+
+{% endblock %}

@@ -1,0 +1,103 @@
+
+# Learn more about services, parameters and containers at
+# http://symfony.com/doc/current/service_container.html
+parameters:
+    # files_directory: '/'
+    zip_directory: '%kernel.root_dir%/../web/uploads/zip'
+    security.class: AppBundle\Utils\Security
+    #parameter_name: value
+    files_directory: '%kernel.root_dir%/../web/uploads/files'
+
+services:
+    #service_name:
+    #    class: AppBundle\Directory\ClassName
+    #    arguments: ['@another_service_name', 'plain_value', '%parameter_name%']
+    app.encoder.json:
+        class: 'Symfony\Component\Serializer\Encoder\JsonEncoder'
+
+    app.normalizer.credentials:
+        class: 'AppBundle\Service\CredentialsNormalizer'
+
+    app.normalizer.apikey:
+        class: 'AppBundle\Service\APIKeyNormalizer'
+
+    app.normalizer.user:
+        class: 'AppBundle\Service\UserNormalizer'
+
+    app.normalizer.folder:
+        class: 'AppBundle\Service\FolderNormalizer'
+
+    app.normalizer.file:
+        class: 'AppBundle\Service\FileNormalizer'
+
+    app.serializer.default:
+        class: 'Symfony\Component\Serializer\Serializer'
+        arguments:
+            0:
+                - '@app.normalizer.credentials'
+                - '@app.normalizer.apikey'
+                - '@app.normalizer.user'
+                - '@app.normalizer.folder'
+                - '@app.normalizer.file'
+            1:
+                - '@app.encoder.json'
+
+    app.security:
+        class: "%security.class%"
+
+    folder_repository:
+        class: Doctrine\ORM\EntityRepository
+        factory: ["@doctrine.orm.entity_manager", getRepository]
+        arguments:
+            - AppBundle\Entity\Folder
+
+    file_repository:
+        class: Doctrine\ORM\EntityRepository
+        factory: ["@doctrine.orm.entity_manager", getRepository]
+        arguments:
+            - AppBundle\Entity\File
+
+    share_repository:
+        class: Doctrine\ORM\EntityRepository
+        factory: ["@doctrine.orm.entity_manager", getRepository]
+        arguments:
+            - AppBundle\Entity\Share
+
+    folder_reader:
+        class: AppBundle\Reader\FolderReader
+        arguments:
+            - '@folder_repository'
+
+    file_reader:
+        class: AppBundle\Reader\FileReader
+        arguments:
+            - '@file_repository'
+
+    share_reader:
+        class: AppBundle\Reader\ShareReader
+        arguments:
+            - '@share_repository'
+
+    file_factory:
+        class: AppBundle\Factory\FileFactory
+        arguments:
+            - '@service_container'
+            - '@doctrine.orm.entity_manager'
+
+    folder_factory:
+        class: AppBundle\Factory\FolderFactory
+        arguments:
+            - '@service_container'
+            - '@doctrine.orm.entity_manager'
+
+    share_factory:
+        class: AppBundle\Factory\ShareFactory
+        arguments:
+            - '@service_container'
+            - '@doctrine.orm.entity_manager'
+
+    user_factory:
+        class: AppBundle\Factory\UserFactory
+        arguments:
+            - '@service_container'
+            - '@doctrine.orm.entity_manager'

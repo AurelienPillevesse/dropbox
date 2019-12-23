@@ -1,0 +1,64 @@
+{% trans_default_domain 'FOSUserBundle' %}
+{% extends 'base.html.twig' %}
+
+{% block body %}
+
+    <div class="persoPaddingBlock"></div>
+    <div class="container persoWhiteBlock rounded">
+
+        <div class="row">
+            <div class="col-md-5">
+                <h3 class="text-center">Profile</h3>
+
+
+                <div style="padding-top: 5%;" class="row">
+                    <div class="col-3 font-weight-bold">
+                        Username
+                    </div>
+                    <div class="col-9">
+                        {{ user.username }}
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-3 font-weight-bold">
+                        Email
+                    </div>
+                    <div class="col-9">
+                        {{ user.email }}
+                    </div>
+                </div>
+
+                <div class="row d-flex justify-content-center">
+                    <form class="persoButtonEdit" action="{{ path('user_profile_edit') }}">
+                        <button type="submit" class="btn btn-light border btn-sm btn-block">Edit profile</button>
+                    </form>
+                    <form style="margin-left: 10px;" class="persoButtonEdit" action="{{ path('fos_user_change_password') }}">
+                        <button type="submit" class="btn btn-light border btn-sm btn-block">Change password</button>
+                    </form>
+                </div>
+
+
+
+
+
+            </div>
+            <div class="col-md-7 border-left">
+                <h3 class="text-center">Storage informations</h3>
+                <div style="padding-top: 3%;" class="row">
+                    <div class="col-md-5 font-weight-bold">
+                        Available storage space :
+                    </div>
+                    <div class="col-md-7">
+                        {{ freeSpaceRounded }}
+                    </div>
+                </div>
+                <div id="div_chart"></div>
+                <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+                <script type="text/javascript">
+                    {{ gc_draw(piechart, 'div_chart') }}
+                </script>
+            </div>
+        </div>
+    </div>
+
+{% endblock %}

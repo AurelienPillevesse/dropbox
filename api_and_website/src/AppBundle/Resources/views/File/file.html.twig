@@ -1,0 +1,74 @@
+{% block body %}
+
+    {% for file in listFiles %}
+		<tr>
+			<th scope="row">
+                <!-- <i class="fa fa-file-o"></i> -->
+                <img src="{{ asset('img/picture_logo_1.png') }}" style="height: 30px; width: auto;"/>
+            </th>
+            {% if app.user == file.owner %}
+			<td><a href="{{ path('get_file', {'file_id': file.id}) }}" style="word-break: break-all;">{{ file.name }}</a></td>
+            {% else %}
+            <td><a href="{{ path('shared_subfile', {'hash': hash, 'file_id': file.id}) }}">{{ file.name }}</a></td>
+            {% endif %}
+			<td class="text-center">{{ file.created|date('Y-m-d') }}</td>
+			<td class="text-center">
+				<a class="dropdown persoDropDown" href="#" id="fileDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+					<i class="fa fa-chevron-circle-down persoOptions"></i>
+				</a>
+				<div class="dropdown-menu" aria-labelledby="fileDropdown">
+                    {% if app.user == file.owner %}
+						<a class="dropdown-item" href="{{ path('get_file', {'file_id': file.id}) }}">Display</a>
+						<a class="dropdown-item" href="{{ path('rename_file', {'file_id': file.id}) }}">Rename</a>
+						<a class="dropdown-item" href="{{ path('download_file', {'file_id': file.id}) }}">Download</a>
+                        <div class="dropdown-divider"></div>
+    					<a class="dropdown-item" href="{{ path('delete_file', {'file_id': file.id}) }}">Delete</a>
+                    {% else %}
+						<a class="dropdown-item" href="{{ path('shared_subfile', {'hash': hash, 'file_id': file.id}) }}">Display</a>
+                    {% endif %}
+				</div>
+			</td>
+		</tr>
+    {% endfor %}
+
+	<!--
+	<div class="row">
+		<div class="col-lg-12 mx-auto">
+			<div>
+				Files
+                {% if (currentFolder is defined and currentFolder != null and app.user == currentFolder.owner) or (forIndex is defined and forIndex == true and currentFolder == null)%}
+                    {% if currentFolder != null and currentFolder.id != null %}
+						<a class="col-lg-2" href="{{ path('file_add', {'folder_id': currentFolder.id}) }}"><i class="fa fa-plus-square"></i></a>
+                    {% else %}
+						<a class="col-lg-2" href="{{ path('file_add') }}"><i class="fa fa-plus-square"></i></a>
+                    {% endif %}
+                {% endif %}
+
+			</div>
+			<ul style="list-style: none; margin-left: 0; padding-left: 1em; text-indent: -1em;">
+                {% for file in listFiles %}
+					<li>
+						<div class="col-lg-12 container">
+							<span class="col-lg-4" ><a href="{{ path('get_file', {'file_id': file.id}) }}"><i class="fa fa-file fa-lg"></i></a></span>
+							<a class="dropdown-toggle col-lg-6" href="#" id="folderDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+								{{ file.name }}
+							</a>
+							<div class="dropdown-menu" aria-labelledby="folderDropdown">
+								{% if app.user == file.owner %}
+									<a class="dropdown-item" href="{{ path('rename_file', {'file_id': file.id}) }}">Rename</a>
+									<a class="dropdown-item" href="{{ path('download_file', {'file_id': file.id}) }}">Download</a>
+								{% else %}
+									<a class="dropdown-item" href="{{ path('shared_subfile', {'hash': hash, 'file_id': file.id}) }}">Display</a>
+								{% endif %}
+							</div>
+							<a class="col-lg-5" href="{{ path('delete_file', {'file_id': file.id}) }}"><i class="fa fa-times"></i></a>
+						</div>
+					</li>
+                {% else %}
+					No folders have been found.
+                {% endfor %}
+			</ul>
+		</div>
+	</div>
+-->
+{% endblock %}

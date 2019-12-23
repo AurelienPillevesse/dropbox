@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<!-- Bootstrap core CSS -->
+	<link href="{{ asset('css/bootstrap/css/bootstrap.min.css') }}" rel="stylesheet">
+
+	<!-- Custom fonts for this template-->
+	<link href="{{ asset('css/font-awesome/css/font-awesome.min.css') }}" rel="stylesheet" type="text/css">
+	<link href='https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800' rel='stylesheet' type='text/css'>
+	<link href='https://fonts.googleapis.com/css?family=Merriweather:400,300,300italic,400italic,700,700italic,900,900italic' rel='stylesheet' type='text/css'>
+
+	<!-- Plugin CSS-->
+	<link href="{{ asset('css/magnific-popup/magnific-popup.css') }}" rel="stylesheet">
+
+	<!-- Custom styles for this template -->
+	<link href="{{ asset('css/creative.min.css') }}" rel="stylesheet">
+	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+
+	<link href="{{ asset('css/home-not-connected.css') }}" rel="stylesheet">
+
+	<!--<link href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.0/css/bootstrap.min.css" rel="stylesheet" id="bootstrap-css">-->
+	<script src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.0/js/bootstrap.min.js"></script>
+	<script src="//code.jquery.com/jquery-1.11.1.min.js"></script>
+	<title>Supfiles - Home</title>
+</head>
+
+
+<body id="page-top">
+
+<!-- Navigation -->
+<nav class="navbar navbar-expand-lg navbar-light fixed-top" id="mainNav">
+	<div class="container">
+		<a class="navbar-brand js-scroll-trigger" href="#page-top">SupFiles</a>
+		<button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarResponsive" aria-controls="navbarResponsive" aria-expanded="false" aria-label="Toggle navigation">
+			<span class="navbar-toggler-icon"></span>
+		</button>
+		<div class="collapse navbar-collapse" id="navbarResponsive">
+			<ul class="navbar-nav ml-auto">
+				<li class="nav-item">
+					<a class="nav-link js-scroll-trigger" href="{{ path('fos_user_security_login') }}">Sign in</a>
+				</li>
+				<li class="nav-item">
+					<a class="nav-link js-scroll-trigger" href="{{ path('fos_user_registration_register') }}">Register</a>
+				</li>
+				<li class="nav-item">
+					<a class="nav-link js-scroll-trigger" href="#about">About</a>
+				</li>
+				<li class="nav-item">
+					<a class="nav-link js-scroll-trigger" href="#services">Services</a>
+				</li>
+				<li class="nav-item">
+					<a class="nav-link js-scroll-trigger" href="#contact">Contact</a>
+				</li>
+			</ul>
+		</div>
+	</div>
+</nav>
+
+<header class="masthead text-center text-white d-flex">
+	<div class="container my-auto">
+		<div class="row">
+			<div class="col-lg-10 mx-auto">
+				<h1 class="text-uppercase">
+					<strong>Free your storage spaces with Supfiles</strong>
+				</h1>
+				<hr>
+			</div>
+			<div class="col-lg-8 mx-auto">
+				<p class="text-faded mb-5">Use Supfiles can help you stay organized in all circumstances!</p>
+				<a class="btn btn-primary btn-xl js-scroll-trigger" href="#about">Find Out More</a>
+			</div>
+		</div>
+	</div>
+</header>
+
+<section class="bg-primary" id="about">
+	<div class="container">
+		<div class="row">
+			<div class="col-lg-8 mx-auto text-center">
+				<h2 class="section-heading text-white">We've got what you need!</h2>
+				<hr class="light my-4">
+				<p class="text-faded mb-4">Supfiles has everything you need, gather all your files in one place! Easy to find and synchronized securely on all your devices. You can access it anywhere, anytime!</p>
+				<a class="btn btn-light btn-xl js-scroll-trigger" href="{{ path('fos_user_registration_register') }}">Get Started!</a>
+			</div>
+		</div>
+	</div>
+</section>
+
+<section id="services" class="border-bottom">
+	<div class="container">
+		<div class="row">
+			<div class="col-lg-12 text-center">
+				<h2 class="section-heading">At Your Service</h2>
+				<hr class="my-4">
+			</div>
+		</div>
+	</div>
+	<div class="container">
+		<div class="row">
+			<div class="col-lg-3 col-md-6 text-center">
+				<div class="service-box mt-5 mx-auto">
+					<i class="fa fa-4x fa-file text-primary mb-3 sr-icons"></i>
+					<h3 class="mb-3">Files</h3>
+					<p class="text-muted mb-0">Upload any type of files.</p>
+				</div>
+			</div>
+			<div class="col-lg-3 col-md-6 text-center">
+				<div class="service-box mt-5 mx-auto">
+					<i class="fa fa-4x fa-globe text-primary mb-3 sr-icons"></i>
+					<h3 class="mb-3">Accessibility</h3>
+					<p class="text-muted mb-0">Access your documents wherever you are!</p>
+				</div>
+			</div>
+			<div class="col-lg-3 col-md-6 text-center">
+				<div class="service-box mt-5 mx-auto">
+					<i class="fa fa-4x fa-share-alt text-primary mb-3 sr-icons"></i>
+					<h3 class="mb-3">Community</h3>
+					<p class="text-muted mb-0">Share your files and folders with other users.</p>
+				</div>
+			</div>
+			<div class="col-lg-3 col-md-6 text-center">
+				<div class="service-box mt-5 mx-auto">
+					<i class="fa fa-4x fa-mobile-phone text-primary mb-3 sr-icons"></i>
+					<h3 class="mb-3">Cross platform</h3>
+					<p class="text-muted mb-0">Available on multiple devices!</p>
+				</div>
+			</div>
+		</div>
+	</div>
+</section>
+<section id="contact">
+	<div class="container">
+		<div class="row">
+			<div class="col-lg-8 mx-auto text-center">
+				<img src="{{ asset('img/logo_app_new.png') }}" class="img-fluid rounded mx-auto d-block">
+				<hr class="my-4">
+				<p class="mb-5">Contact us</p>
+			</div>
+		</div>
+		<div class="row">
+			<div class="col-lg-4 ml-auto text-center">
+				<i class="fa fa-phone fa-3x mb-3 sr-contact"></i>
+				<p>+33 678 110 589</p>
+			</div>
+			<div class="col-lg-4 mr-auto text-center">
+				<i class="fa fa-envelope-o fa-3x mb-3 sr-contact"></i>
+				<p>
+					<a href="mailto:feedback@supfiles.com">feedback@supfiles.com</a>
+				</p>
+			</div>
+		</div>
+	</div>
+</section>
+
+<!-- Bootstrap core JavaScript-->
+<script src="{{ asset('css/jquery/jquery.min.js') }}"></script>
+<script src="{{ asset('css/bootstrap/js/bootstrap.bundle.min.js') }}"></script>
+
+<!-- Plugin JavaScript -->
+<script src="{{ asset('css/jquery-easing/jquery.easing.min.js') }}"></script>
+<script src="{{ asset('css/scrollreveal/scrollreveal.min.js') }}"></script>
+<script src="{{ asset('css/magnific-popup/jquery.magnific-popup.min.js') }}"></script>
+
+<!-- Custom scripts for this template -->
+<script src="{{ asset('js/creative.min.js') }}"></script>
+
+</body>
+
+</html>

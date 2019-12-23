@@ -1,0 +1,25 @@
+{% extends 'base.html.twig' %}
+
+{% block body %}
+
+	<div class="persoPaddingBlock"></div>
+	<div class="container persoWhiteBlock rounded">
+
+		<div class="row d-flex justify-content-center">
+			<div>
+				<h3 class="text-center">Rename folder</h3>
+
+                {{ form_start(form, { 'attr': {'class': 'font-italic'} }) }}
+				<div class="form-group">
+                    {{ form_widget(form.name, { 'attr': {'class': 'form-control','placeholder':''} })}}
+				</div>
+				<div class="text-right">
+                    {{ form_row(form.save, { 'attr': {'class': 'form-control btn btn-primary btn-sm btn-block'} })}}
+				</div>
+				{{ form_errors(form.name) }}
+                {{ form_end(form) }}
+
+			</div>
+		</div>
+	</div>
+{% endblock %}

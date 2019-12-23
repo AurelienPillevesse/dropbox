@@ -1,0 +1,77 @@
+{% extends 'base.html.twig' %}
+
+{% block body %}
+
+	<div class="persoPaddingBlock"></div>
+	<div class="container persoWhiteBlock rounded">
+
+			<div>
+				<h3 class="text-center" style="word-break: break-all;">File : {{ file_name }}</h3>
+
+                {% if type == 'audio' %}
+					<div class="d-flex justify-content-center">
+						<audio id="audio" controls>
+							{% if hash is defined and hash is not null %}
+								<source src="{{ path('show_shared_subfile', {'hash': hash, 'file_id': file_id}) }}" type="{{file_type}}">
+							{% else %}
+								<source src="{{ path('show_file', {'file_id': file_id}) }}" type="{{file_type}}">
+							{% endif %}
+							Your browser does not support the audio element.
+						</audio>
+					</div>
+                {% elseif type == 'video' %}
+					<div class="d-flex justify-content-center">
+						<video id="video" width="320" height="240" controls>
+							{% if hash is defined and hash is not null %}
+								<source src="{{ path('show_shared_subfile', {'hash': hash, 'file_id': file_id}) }}" type="{{file_type}}">
+							{% else %}
+								<source src="{{ path('show_file', {'file_id': file_id}) }}" type="{{file_type}}">
+							{% endif %}
+							Your browser does not support the video tag.
+						</video>
+					</div>
+                {% elseif type == 'image' %}
+					<div>
+						{% if hash is defined and hash is not null %}
+							<img src="{{ path('show_shared_subfile', {'hash': hash, 'file_id': file_id}) }}" style="height:100%;width:100%;">
+						{% else %}
+							<img src="{{ path('show_file', {'file_id': file_id}) }}" style="height:100%;width:100%;">
+						{% endif %}
+					</div>
+                {% elseif file_type == 'text/plain' %}
+					<div style="height: 100%;width: 100%;" class="d-flex justify-content-center">
+						{% if hash is defined and hash is not null %}
+							<iframe src="{{ path('show_shared_subfile', {'hash': hash, 'file_id': file_id}) }}" frameborder="0" height="100%" width="100%" style="height: 400px;"></iframe>
+						{% else %}
+							<iframe src="{{ path('show_file', {'file_id': file_id}) }}" frameborder="0" height="100%" width="100%" style="height: 400px;"></iframe>
+						{% endif %}
+					</div>
+                {% elseif file_type == 'application/pdf' %}
+					<object type="application/pdf" width="100%" height="100%" style="height: 400px;" class="d-flex justify-content-center">
+						{% if hash is defined and hash is not null %}
+							<param name="src" value="{{ path('show_shared_subfile', {'hash': hash, 'file_id': file_id}) }}" />
+						{% else %}
+							<param name="src" value="{{ path('show_file', {'file_id': file_id}) }}" />
+						{% endif %}
+						<p>Your browser does not support the audio element.</p>
+					</object>
+                {% else %}
+					<div class="text-center">
+						<div>
+							This type of content is not available for the moment.
+						</div>
+                        {% if hash is not defined %}
+							<div>
+								But you can <a href="{{ path('download_file', {'file_id': file_id}) }}">download it</a>!
+							</div>
+                        {% endif %}
+
+
+					</div>
+
+                {% endif %}
+			</div>
+	</div>
+
+
+{% endblock %}

@@ -1,0 +1,221 @@
+# Swagger
+app.swagger_ui:
+    path: /api/doc
+    methods: GET
+    defaults: { _controller: nelmio_api_doc.controller.swagger_ui }
+app.swagger:
+    path: /api/doc.json
+    methods: GET
+    defaults: { _controller: nelmio_api_doc.controller.swagger }
+
+# user
+user_profile_show:
+    path:   /profile/
+    defaults: { _controller: AppBundle:Profile:show }
+    methods: [GET]
+
+user_profile_edit:
+    path:   /profile/edit
+    defaults: { _controller: AppBundle:Profile:edit }
+    methods: [GET,POST]
+
+
+# fos_user
+fos_user:
+    resource: "@FOSUserBundle/Resources/config/routing/all.xml"
+
+# API
+#       API identification
+api_register:
+    path:   /api/register
+    defaults: { _controller: AppBundle:User:registerApi }
+    methods: [POST]
+api_signin:
+    path:   /api/login
+    defaults: { _controller: AppBundle:APIKey:loginApi }
+    methods: [POST]
+api_logout:
+    path:   /api/logout
+    defaults: { _controller: AppBundle:APIKey:logoutApi }
+    methods: [POST]
+
+#       API file
+api_file_add:
+    path:   /api/file/add/{folder_id}
+    defaults: { _controller: AppBundle:FileApi:addApi, folder_id: null }
+    methods: [POST]
+    requirements:
+        folder_id: '\d+'
+api_file_rename:
+    path:   /api/file/rename/{file_id}
+    defaults: { _controller: AppBundle:FileApi:renameApi }
+    methods: [POST]
+    requirements:
+        file_id: '\d+'
+api_file_delete:
+    path:   /api/file/delete/{file_id}
+    defaults: { _controller: AppBundle:FileApi:deleteApi }
+    methods: [POST]
+    requirements:
+        file_id: '\d+'
+api_file_get:
+    path:   /api/file/{file_id}
+    defaults: { _controller: AppBundle:FileApi:getApi }
+    methods: [POST]
+    requirements:
+        file_id: '\d+'
+api_file_download:
+    path:   /api/file/download/{file_id}
+    defaults: { _controller: AppBundle:FileApi:downloadApi }
+    methods: [POST]
+    requirements:
+        file_id: '\d+'
+
+#       API folder
+api_folder_new:
+    path:   /api/folder/add/{folder_id}
+    defaults: { _controller: AppBundle:FolderApi:addApi, folder_id: null }
+    methods: [POST]
+    requirements:
+        folder_id: '\d+'
+api_folder_get:
+    path:   /api/folder/{folder_id}
+    defaults: { _controller: AppBundle:FolderApi:getApi, folder_id: null }
+    methods: [POST]
+    requirements:
+        folder_id: '\d+'
+api_folder_rename:
+    path:   /api/folder/rename/{folder_id}
+    defaults: { _controller: AppBundle:FolderApi:renameApi }
+    methods: [POST]
+    requirements:
+        folder_id: '\d+'
+api_folder_delete:
+    path:   /api/folder/delete/{folder_id}
+    defaults: { _controller: AppBundle:FolderApi:deleteApi, folder_id: null }
+    methods: [POST]
+    requirements:
+        folder_id: '\d+'
+api_folder_zip:
+    path:   /api/folder/zip/{folder_id}
+    defaults: { _controller: AppBundle:FolderApi:zipApi }
+    methods: [POST]
+    requirements:
+        folder_id: '\d+'
+api_folder_share:
+    path:   /api/folder/share/{folder_id}
+    defaults: { _controller: AppBundle:FolderApi:shareApi }
+    methods: [POST]
+    requirements:
+        folder_id: '\d+'
+
+# Website
+#       Website folder
+index:
+    path:   /
+    defaults: { _controller: AppBundle:Folder:index }
+    methods: [GET]
+folder_add:
+    path:   /folder/add/{folder_id}
+    defaults: { _controller: AppBundle:Folder:add, folder_id: null }
+    methods: [GET, POST]
+    requirements:
+        folder_id: '\d+'
+rename_folder:
+    path:   /folder/rename/{folder_id}
+    defaults: { _controller: AppBundle:Folder:rename }
+    methods: [GET, POST]
+    requirements:
+        folder_id: '\d+'
+share_folder:
+    path: /folder/share/{folder_id}
+    defaults: { _controller: AppBundle:Folder:share }
+    requirements:
+        folder_id: '\d+'
+delete_folder:
+    path: /folder/delete/{folder_id}
+    defaults: { _controller: AppBundle:Folder:delete }
+    requirements:
+        folder_id: '\d+'
+zip_folder:
+    path: /folder/zip/{folder_id}
+    defaults: { _controller: AppBundle:Folder:zip }
+    requirements:
+        folder_id: '\d+'
+get_folder:
+    path:   /folder/{folder_id}
+    defaults: { _controller: AppBundle:Folder:get }
+    methods: [GET]
+    requirements:
+        folder_id: '\d+'
+
+#       Website file
+file_add:
+    path:   /file/add/{folder_id}
+    defaults: { _controller: AppBundle:File:add, folder_id: null }
+    methods: [GET, POST]
+get_file:
+    path:   /file/{file_id}
+    defaults: { _controller: AppBundle:File:get }
+    methods: [GET]
+    requirements:
+        file_id: '\d+'
+show_file:
+    path:   /file/show/{file_id}
+    defaults: { _controller: AppBundle:File:show }
+    methods: [GET]
+    requirements:
+        file_id: '\d+'
+rename_file:
+    path:   /file/rename/{file_id}
+    defaults: { _controller: AppBundle:File:rename }
+    methods: [GET, POST]
+    requirements:
+        file_id: '\d+'
+delete_file:
+    path:   /file/delete/{file_id}
+    defaults: { _controller: AppBundle:File:delete }
+    methods: [GET]
+    requirements:
+        file_id: '\d+'
+download_file:
+    path:   /file/download/{file_id}
+    defaults: { _controller: AppBundle:File:download }
+    methods: [GET]
+    requirements:
+        file_id: '\d+'
+
+#       Website share
+shared_folder:
+    path: /shared/{hash}
+    defaults: { _controller: AppBundle:Folder:shared }
+shared_subfolder:
+    path: /shared/{hash}/folder/{folder_id}
+    defaults: { _controller: AppBundle:Share:sharedSubFolder }
+    requirements:
+        folder_id: '\d+'
+shared_subfile:
+    path: /shared/{hash}/file/{file_id}
+    defaults: { _controller: AppBundle:Share:sharedSubFile }
+    requirements:
+        file_id: '\d+'
+show_shared_subfile:
+    path: /shared/{hash}/file/show/{file_id}
+    defaults: { _controller: AppBundle:Share:showSharedSubFile }
+    requirements:
+        file_id: '\d+'
+
+# Google and Facebook connection
+hwi_oauth_redirect:
+    resource: "@HWIOAuthBundle/Resources/config/routing/redirect.xml"
+    prefix:   /connect
+hwi_oauth_connect:
+    resource: "@HWIOAuthBundle/Resources/config/routing/connect.xml"
+    prefix:   /connect
+hwi_oauth_login:
+    resource: "@HWIOAuthBundle/Resources/config/routing/login.xml"
+    prefix:   /login
+facebook_login:
+    path: /connect/facebook
+google_login:
+    path: /connect/google

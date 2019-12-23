@@ -1,0 +1,128 @@
+{% extends 'base.html.twig' %}
+
+{% block body %}
+
+
+    <div class="persoPaddingBlock"></div>
+    <div class="container persoWhiteBlock rounded">
+
+        <div class="row">
+            <div class="col-10 text-black-50 persoBreadCrumb">
+                {% if hash is defined and hash is not null %}
+                    <a href="{{ path('shared_folder', {'hash': hash}) }}">Home</a>
+                {% else %}
+                    <a href="{{ path('index') }}">Home</a>
+                {% endif %}
+
+                {% if listParentFolders is defined and listParentFolders != null %}
+                    {% for parentFolder in listParentFolders %}
+                        >
+                        {% if parentFolder.id != currentFolder.id and parentFolder.owner == app.user %}
+                            <a href="{{ path('get_folder', {'folder_id': parentFolder.id}) }}">{{ parentFolder.name }}</a>
+                        {% elseif parentFolder.id != currentFolder.id and parentFolder.owner != app.user %}
+                            <a href="{{ path('shared_subfolder', {'hash': hash, 'folder_id': parentFolder.id}) }}">{{ parentFolder.name }}</a>
+                        {% else %}
+                            {{ parentFolder.name }}
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-10">
+                {% if listFolders != null or listFiles != null %}
+                    <table class="table table-striped">
+                        <thead>
+                        <tr>
+                            <th scope="col">#</th>
+                            <th scope="col">Name</th>
+                            <th class="text-center" scope="col">Created</th>
+                            <th class="text-center" scope="col"><i class="fa fa-list"></i></th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        {{ include('@App/Folder/folder.html.twig', {'currentFolder': currentFolder}) }}
+                        {{ include('@App/File/file.html.twig', {'currentFolder': currentFolder}) }}
+                        </tbody>
+                    </table>
+                {% else %}
+                    <div class="text-center alert alert-info" role="alert">
+                        No elements have been found.
+                    </div>
+                {% endif %}
+
+
+
+            </div>
+            <div class="col-md-2 border-left">
+                <div>
+                    {% if (currentFolder is defined and currentFolder != null and app.user == currentFolder.owner) or (forIndex is defined and forIndex == true and currentFolder == null) %}
+                        {% if currentFolder != null and currentFolder.id != null %}
+                            <form class="persoButtonUpload" action="{{ path('file_add', {'folder_id': currentFolder.id}) }}">
+                                <button type="submit" class="btn btn-primary btn-sm btn-block">Upload</button>
+                            </form>
+
+                            <a href="{{ path('folder_add', {'folder_id': currentFolder.id}) }}">
+                        {% else %}
+                            <form class="persoButtonUpload" action="{{ path('file_add') }}">
+                                <button type="submit" class="btn btn-primary btn-sm btn-block">Upload</button>
+                            </form>
+
+                            <a href="{{ path('folder_add') }}">
+                        {% endif %}
+                        <span>
+                            <i class="fa fa-folder"></i>
+                        </span>
+                            New folder
+                        </a>
+                        <br>
+                    {% endif %}
+
+                    {% if currentFolder is defined and currentFolder != null and currentFolder.id %}
+                        {% if app.user == currentFolder.owner %}
+                            <a href="{{ path('delete_folder', {'folder_id': currentFolder.id}) }}">
+                                <span>
+                                    <i class="fa fa-times"></i>
+                                </span>
+                                Delete this folder
+                            </a>
+                            <br>
+                            <a href="{{ path('zip_folder', {'folder_id': currentFolder.id}) }}">
+                                <span>
+                                    <i class="fa fa-download"></i>
+                                </span>
+                                Download as Zip
+                            </a>
+                            <br>
+                            <a href="{{ path('share_folder', {'folder_id': currentFolder.id}) }}">
+                                <span>
+                                    <i class="fa fa-share"></i>
+                                </span>
+                                Share this folder
+                            </a>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
+
+
+    <!-- Bootstrap core JavaScript-->
+    <script src="{{ asset('css/jquery/jquery.min.js') }}"></script>
+    <script src="{{ asset('css/bootstrap/js/bootstrap.bundle.min.js') }}"></script>
+
+    <!-- Plugin JavaScript -->
+    <script src="{{ asset('css/jquery-easing/jquery.easing.min.js') }}"></script>
+    <script src="{{ asset('css/scrollreveal/scrollreveal.min.js') }}"></script>
+    <script src="{{ asset('css/magnific-popup/jquery.magnific-popup.min.js') }}"></script>
+
+    <!-- Custom scripts for this template -->
+    <script src="{{ asset('js/creative.min.js') }}"></script>
+
+{% endblock %}
