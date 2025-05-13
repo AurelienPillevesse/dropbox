@@ -1,0 +1,5251 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "description": "Card API have different endpoints for creating, editing and updating a card via different methods.\n\nBelow in the picture is the basic flow of a card lifecycle. Note we don't restrict changes,\nso it is possible although not advisable e.g. to change card status from Card Lost to Card OK.\n\n![ Card lifecycle ](https://enfuce-public-resources.s3.eu-central-1.amazonaws.com/public/card_lifecycle.svg)\n\nBelow is a short summary of each status:\n<table>\n  <tr>\n    <th>Status name</th>\n    <th>Description</th>\n    <th>Authorisations rejected</th>\n    <th>Clearing transactions posting blocked</th>\n  <tr>\n    <td>Card OK</td>\n    <td>Card is open and in normal status. Card has to be in this status in order for it to be renewed.</td>\n    <td>No</td>\n    <td>No</td>\n  </tr>\n  <tr>\n    <td>Card Blocked</td>\n    <td>Temporary block on the card that will prevent approval of authorisations. Can be used instead of account level temporary block if target is to block only a specific card.</td>\n    <td>Yes</td>\n    <td>No</td>\n  </tr>\n  <tr>\n    <td>Suspected Fraud</td>\n    <td>Temporary block on the card that will prevent approval of authorisations. Functionality the same as for \"Card blocked\", the different code allows to differentiate between the blocks.</td>\n    <td>Yes</td>\n    <td>No</td>\n  </tr>\n  <tr>\n    <td>Card No Renewal</td>\n    <td>Status set to prevent following card renewal. Does not affect card functionality in any way, only renewal.</td>\n    <td>No</td>\n    <td>No</td>\n  </tr>\n  <tr>\n    <td>Card Closed Due To Fraud</td>\n    <td>Used to close a card due to known fraud.</td>\n    <td>Yes</td>\n    <td>No</td>\n  </tr>\n  <tr>\n    <td>Card Lost</td>\n    <td>Used to close a card because it is lost.</td>\n    <td>Yes</td>\n    <td>No</td>\n  </tr>\n  <tr>\n    <td>Card Stolen</td>\n    <td>Used to close a card because it is stolen.</td>\n    <td>Yes</td>\n    <td>No</td>\n  </tr>\n  <tr>\n    <td>Card Closed</td>\n    <td>Used to close card by request from customer or bank, reason for closure is set with status update reason. Allows still clearing transaction posting.</td>\n    <td>Yes</td>\n    <td>No</td>\n  </tr>\n</table>\n\n### Encrypted payload for _Create card_ or _Get card_ with a full card number\n\nThe payload field _encryptedData_ in create card requests is encrypted with JWE (JSON Web Encryption). \nThe field value must be presented using compact serialization scheme, i.e. Base64URL-encoded elements \nseparated by a \".\".\n\nJWE should use RSA-OAEP-256 algorithm for encrypting the random symmetric key and A256GCM algorithm for\nencrypting the payload. Public keys used for encryption are provided in certificates below. \nJWE header must also contain parameter \"x5t#S256\" with SHA256 fingerprint of the certificate used. \nSee RFC7516 section 4.1.10.\n\nThe payload to be encrypted must be in JSON-format and contain field \"cardNumber\". For example:\n\n        { \"cardNumber\": \"5555555555554444\" }\n\nCertificate for test environments (jwe-test-20240530.pem):\n\n        -----BEGIN CERTIFICATE-----\n        MIIDsTCCApmgAwIBAgIUfmpLQ1NkJNfop2NhQ26xrFzxSvgwDQYJKoZIhvcNAQEL\n        BQAwaDELMAkGA1UEBhMCRkkxDjAMBgNVBAcMBUVzcG9vMQ8wDQYDVQQKDAZFbmZ1\n        Y2UxETAPBgNVBAsMCENhcmQgQVBJMSUwIwYDVQQDDBxqd2UtdGVzdC0yMDI0MDUz\n        MC5lbmZ1Y2UuY29tMB4XDTI0MDUzMDA5MTEzOVoXDTI2MDUyMDA5MTEzOVowaDEL\n        MAkGA1UEBhMCRkkxDjAMBgNVBAcMBUVzcG9vMQ8wDQYDVQQKDAZFbmZ1Y2UxETAP\n        BgNVBAsMCENhcmQgQVBJMSUwIwYDVQQDDBxqd2UtdGVzdC0yMDI0MDUzMC5lbmZ1\n        Y2UuY29tMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvNk4etrTz9a2\n        p5sbhVn0qB5SDL1nRWsCPUvNnCD1O4j8J25GvImqizqumktxLk0f9wRzORm3N+7U\n        qnOcqWjn+vQEqA/CGwXptdkPxWOBpU7Whpd7k+M5tONRhm5L6CL0bym2ostzGJAA\n        iMMUMMzoRmSQUCgqmnRkn1yL/gQWk0L3YcpwrmJISBtRq8dDFtoKlj9UR8tnlw0s\n        P+HpQZu5WWYIuPFsmki2YIdE2LevDsUpnTtxz92hK5DIHNAls5HSCuSSNJvEO24R\n        WQXd1/sb1vuHRz7xqG5thRABcQO3FK6ZMDty/IbujExDxi3u3wTAxhhgJYeLqX0Z\n        1luOZywnJwIDAQABo1MwUTAdBgNVHQ4EFgQUmm4zm+N2ZqYGbDMVVWeMJOoGlXgw\n        HwYDVR0jBBgwFoAUmm4zm+N2ZqYGbDMVVWeMJOoGlXgwDwYDVR0TAQH/BAUwAwEB\n        /zANBgkqhkiG9w0BAQsFAAOCAQEAbNaFS8NuyjUCfJY+SYAglTCP7iBT2FdxfjfF\n        7+7bH4v2fmo13n9W7YAOsiTBA1WFPgxmLeg5cWKHxkzkS3lL8sUju+X/Wnxv7Ssq\n        GCIHw/4bY5g9aDlMxVSeSIUIx5oZAYr6Ae6r8FivTjphhDj0WT5Owl96FxMi0+6V\n        mqKcvpQaEcuVWEAQt2KIyzu8XUNPUSicMTJ/QzyRM3GVeYTqs5bL7QpcNymJClGp\n        YalTZU8byStIDSAiKGNAK0uqRg38lYpX53QFbP4m6pX7mdWkvA+VnsRUJpKTvj9B\n        cxBnInMP9uC5YpVVuvC7OY+2Ee5jVfFahrsoR95zFedqyFqQog==\n        -----END CERTIFICATE-----\n\nCertificate for production environments (jwe-20240530.pem):\n\n        -----BEGIN CERTIFICATE-----\n        MIIDpzCCAo+gAwIBAgIUIGm6EHXzDjlyRILHbQX3kHRRH9gwDQYJKoZIhvcNAQEL\n        BQAwYzELMAkGA1UEBhMCRkkxDjAMBgNVBAcMBUVzcG9vMQ8wDQYDVQQKDAZFbmZ1\n        Y2UxETAPBgNVBAsMCENhcmQgQVBJMSAwHgYDVQQDDBdqd2UtMjAyNDA1MzAuZW5m\n        dWNlLmNvbTAeFw0yNDA1MzAxMTAxMjhaFw0yNjA1MjAxMTAxMjhaMGMxCzAJBgNV\n        BAYTAkZJMQ4wDAYDVQQHDAVFc3BvbzEPMA0GA1UECgwGRW5mdWNlMREwDwYDVQQL\n        DAhDYXJkIEFQSTEgMB4GA1UEAwwXandlLTIwMjQwNTMwLmVuZnVjZS5jb20wggEi\n        MA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDQioSuME3mq1qL0WOsplYAIYXG\n        JZr35uxgYSpzfiR6V7YQNHjPhrEy/jmOoVa0P105LKjnSGLqoCiuw9mo13hT0ftV\n        vGF3fQ9qMf0YhGyghr1VQZgUPaj/bBJA6B1CoX2WnxbjpcTCjiUqeBopN/ECnqpO\n        fu/GudW3o/U6ifMruLRD0ap57nIWxE52ECxbKykOlVsdu+E0UckmukDW9wRtznL/\n        g/+YPHFc+88ahNLs3t32C8Y4geuhPpGH46AFHfB9o6to9ICiX8b3BAJWZigoIUa2\n        bDFzC9nb8The6cKPa6AZcx+loi5ITmzII8sYvXS/Vc+BzMHiBSZyeyiYT7v9AgMB\n        AAGjUzBRMB0GA1UdDgQWBBScdOiuD68i4x63BVmgejrOZxsXHjAfBgNVHSMEGDAW\n        gBScdOiuD68i4x63BVmgejrOZxsXHjAPBgNVHRMBAf8EBTADAQH/MA0GCSqGSIb3\n        DQEBCwUAA4IBAQAdHpJGxhkz+8CE/6JxsoDPv5wSV54VcBGLowSE28FLQ4sKWEOx\n        dicchQMcPElGFad/t/fgjHScTHpBEX1rx8QPrKSIUpi94T+89mxFlWvakDhKWbJw\n        OWoHKXmMsnkY/+/Ofs+wxnJG33ZskEm0uCCD5bACnCOrg/PY1pcrFjhUDHA7S614\n        yo6FUP4MBXq+fBzicN5lqnFcWaE090xnkm3T/VgxCU0hdjr7ZjIDWjZxzOrAwS+3\n        ElErt3AIGJ/yyaXXOup9YK0cOFPgonqXh6/r/CVKIOEPgXFK7+MIplX9ZfdxFAjn\n        KzHR7jb+BN/cmIDt5u7ayqEPj2F6C/fUcXm6\n        -----END CERTIFICATE-----\n",
+    "version": "1",
+    "title": "Card details API",
+    "contact": {
+      "name": "Enfuce Financial Services",
+      "url": "https://enfuce.com",
+      "email": "info@enfuce.com"
+    },
+    "x-logo": {
+      "url": "https://developer.enfuce.com/images/enfuce.svg",
+      "altText": "Enfuce logo"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://integration-api-cat2.{{environment}}.ext.{{realm}}.cia.enfuce.com/card"
+    },
+    {
+      "url": "https://integration-api-cat2.live.ext.prod.cia.enfuce.com/card",
+      "description": "Live environment"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Create card",
+      "description": "<p>Endpoints for creating a card</p><hr><h3>Idempotent Requests</h3><p>Endpoints in this section support idempotency, which means that you can safely submit identical requests without making changes to the data storage twice. To perform an idempotent request, provide <code>x-idempotency-key</code> header with the request.</p><p>Idempotency works by saving <strong>URL</strong>, <strong>method</strong>, and <strong>idempotency header</strong> of your request as a key and the result of the request as value for 24 hours.</p><p>In case an error occurs while processing the request, the error message will be persisted and resent on possible retries. Please note that fields of <code>uuid</code> and <code>timestamp</code> fields of the error will be regenerated to be able to track down the identity of each error.</p><p>Idempotency key needs to be a unique value generated by the client which server then uses to activate the feature to be able to recognize possible future retries of the same request. The max length of the idempotency key is <strong>64 characters</strong>.</p>"
+    },
+    {
+      "name": "Update card",
+      "description": "<p>Endpoints for updating a card</p><hr><h3>Idempotent Requests</h3><p>Endpoints in this section support idempotency, which means that you can safely submit identical requests without making changes to the data storage twice. To perform an idempotent request, provide <code>x-idempotency-key</code> header with the request.</p><p>Idempotency works by saving <strong>URL</strong>, <strong>method</strong>, and <strong>idempotency header</strong> of your request as a key and the result of the request as value for 24 hours.</p><p>In case an error occurs while processing the request, the error message will be persisted and resent on possible retries. Please note that fields of <code>uuid</code> and <code>timestamp</code> fields of the error will be regenerated to be able to track down the identity of each error.</p><p>Idempotency key needs to be a unique value generated by the client which server then uses to activate the feature to be able to recognize possible future retries of the same request. The max length of the idempotency key is <strong>64 characters</strong>.</p>"
+    },
+    {
+      "name": "Get card",
+      "description": "Endpoints for fetching a card"
+    },
+    {
+      "name": "Get plastic",
+      "description": "Endpoints for fetching a plastic"
+    },
+    {
+      "name": "Update plastic",
+      "description": "<p>Endpoints for updating a plastic</p><hr><h3>Idempotent Requests</h3><p>Endpoints in this section support idempotency, which means that you can safely submit identical requests without making changes to the data storage twice. To perform an idempotent request, provide <code>x-idempotency-key</code> header with the request.</p><p>Idempotency works by saving <strong>URL</strong>, <strong>method</strong>, and <strong>idempotency header</strong> of your request as a key and the result of the request as value for 24 hours.</p><p>In case an error occurs while processing the request, the error message will be persisted and resent on possible retries. Please note that fields of <code>uuid</code> and <code>timestamp</code> fields of the error will be regenerated to be able to track down the identity of each error.</p><p>Idempotency key needs to be a unique value generated by the client which server then uses to activate the feature to be able to recognize possible future retries of the same request. The max length of the idempotency key is <strong>64 characters</strong>.</p>"
+    },
+    {
+      "name": "Get application",
+      "description": "Endpoints for fetching an application"
+    },
+    {
+      "name": "Update application",
+      "description": "<p>Endpoints for updating an application</p><hr><h3>Idempotent Requests</h3><p>Endpoints in this section support idempotency, which means that you can safely submit identical requests without making changes to the data storage twice. To perform an idempotent request, provide <code>x-idempotency-key</code> header with the request.</p><p>Idempotency works by saving <strong>URL</strong>, <strong>method</strong>, and <strong>idempotency header</strong> of your request as a key and the result of the request as value for 24 hours.</p><p>In case an error occurs while processing the request, the error message will be persisted and resent on possible retries. Please note that fields of <code>uuid</code> and <code>timestamp</code> fields of the error will be regenerated to be able to track down the identity of each error.</p><p>Idempotency key needs to be a unique value generated by the client which server then uses to activate the feature to be able to recognize possible future retries of the same request. The max length of the idempotency key is <strong>64 characters</strong>.</p>"
+    }
+  ],
+  "paths": {
+    "/v1/MULTI_APPLICATION_CARD/customer/{customerId}": {
+      "post": {
+        "tags": [
+          "Create card"
+        ],
+        "summary": "Create a Multi-application card",
+        "description": "This operation will create a credit or prepaid card media connected to given customer. An account id needs to be provided as well so we know to which account the card should be connected to.",
+        "operationId": "createMultiApplicationCardV1",
+        "parameters": [
+          {
+            "name": "customerId",
+            "in": "path",
+            "description": "The customer id of which customer you want to create the card on",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "biginteger"
+            }
+          },
+          {
+            "name": "auditUser",
+            "in": "query",
+            "description": "The audit user to log the request",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/createMultiApplicationCardResourceBody"
+        },
+        "responses": {
+          "201": {
+            "description": "Successful creation of the product",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/multipleResourceResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/error403"
+          },
+          "404": {
+            "description": "Customer does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/error500"
+          }
+        },
+        "deprecated": false
+      }
+    },
+    "/v1/MULTI_APPLICATION_CARD/{id}": {
+      "patch": {
+        "tags": [
+          "Update card"
+        ],
+        "summary": "Update a Multi-application card",
+        "description": "This operation will update given fields given a card id",
+        "operationId": "updateMultiApplicationCardV1UsingPATCH",
+        "parameters": [
+          {
+            "name": "auditUser",
+            "in": "query",
+            "description": "The audit user to log the request",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The main card id for given card",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "biginteger"
+            }
+          }
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/patchMultiApplicationResourceBody"
+        },
+        "responses": {
+          "200": {
+            "description": "Successful update of the card",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/resourceResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/error403"
+          },
+          "404": {
+            "description": "Entity does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/error500"
+          }
+        },
+        "deprecated": false
+      }
+    },
+    "/v1/application/{id}": {
+      "get": {
+        "tags": [
+          "Get application"
+        ],
+        "summary": "Get application",
+        "description": "This operation will respond with an application",
+        "operationId": "getApplicationV1",
+        "parameters": [
+          {
+            "name": "auditUser",
+            "in": "query",
+            "description": "The audit user to log the request",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The card id for given application",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "biginteger"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful lookup of the application",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/getApplication"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/error403"
+          },
+          "404": {
+            "description": "Application does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/error500"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Update application"
+        ],
+        "summary": "Update an application of a multi-application card",
+        "description": "This operation will update given fields given a card id",
+        "operationId": "updateApplicationV1",
+        "parameters": [
+          {
+            "name": "auditUser",
+            "in": "query",
+            "description": "The audit user to log the request",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The main card id for given card",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "biginteger"
+            }
+          }
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/patchApplicationResourceBody"
+        },
+        "responses": {
+          "200": {
+            "description": "Successful update of the card",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/resourceResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/error403"
+          },
+          "404": {
+            "description": "Entity does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/error500"
+          }
+        },
+        "deprecated": false
+      }
+    },
+    "/v4/MC_CARD/customer/{customerId}/account/{accountId}/{cardRole}": {
+      "post": {
+        "tags": [
+          "Create card"
+        ],
+        "summary": "Create a MasterCard branded card",
+        "description": "This operation will create a credit or prepaid card media connected to given customer. An account id needs to be provided as well so we know to which account the card should be connected to.",
+        "operationId": "createMCCardV4UsingPOST",
+        "parameters": [
+          {
+            "name": "customerId",
+            "in": "path",
+            "description": "The customer id of which customer you want to create the card on",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "biginteger"
+            }
+          },
+          {
+            "name": "accountId",
+            "in": "path",
+            "description": "The account id that the card should be connected to",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "biginteger"
+            }
+          },
+          {
+            "name": "cardRole",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/cardRole"
+            }
+          },
+          {
+            "name": "auditUser",
+            "in": "query",
+            "description": "The audit user to log the request",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/createStandardResourceBody"
+        },
+        "responses": {
+          "201": {
+            "description": "Successful creation of the product",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/resourceResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/error403"
+          },
+          "404": {
+            "description": "Customer does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/error500"
+          }
+        },
+        "deprecated": false
+      }
+    },
+    "/v4/MC_VIRTUAL/customer/{customerId}/account/{accountId}/{cardRole}": {
+      "post": {
+        "tags": [
+          "Create card"
+        ],
+        "summary": "Create a virtual Mastercard branded card",
+        "description": "This operation will create a credit or prepaid card media connected to given customer. An account id needs to be provided as well so we know to which account the card should be connected to.",
+        "operationId": "createMCVirtualV4UsingPOST",
+        "parameters": [
+          {
+            "name": "customerId",
+            "in": "path",
+            "description": "The customer id of which customer you want to create the card on",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "biginteger"
+            }
+          },
+          {
+            "name": "accountId",
+            "in": "path",
+            "description": "The account id that the card should be connected to",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "biginteger"
+            }
+          },
+          {
+            "name": "cardRole",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/cardRole"
+            }
+          },
+          {
+            "name": "auditUser",
+            "in": "query",
+            "description": "The audit user to log the request",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/createVirtualResourceBody"
+        },
+        "responses": {
+          "201": {
+            "description": "Successful creation of the product",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/resourceResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/error403"
+          },
+          "404": {
+            "description": "Customer does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/error500"
+          }
+        },
+        "deprecated": false
+      }
+    },
+    "/v4/DEBIT_MC/customer/{customerId}/account/{accountId}": {
+      "post": {
+        "tags": [
+          "Create card"
+        ],
+        "summary": "Create a debit Mastercard branded card",
+        "description": "This operation will create an debit card media connected to given customer. An account id needs to be provided as well so we know to which account the card should be connected to.",
+        "operationId": "createDebitMcV4UsingPOST",
+        "parameters": [
+          {
+            "name": "customerId",
+            "in": "path",
+            "description": "The customer id of which customer you want to create the card on",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "biginteger"
+            }
+          },
+          {
+            "name": "accountId",
+            "in": "path",
+            "description": "The account id that the card should be connected to",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "biginteger"
+            }
+          },
+          {
+            "name": "auditUser",
+            "in": "query",
+            "description": "The audit user to log the request",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/createStandardResourceBody"
+        },
+        "responses": {
+          "201": {
+            "description": "Successful creation of the product",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/resourceResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/error403"
+          },
+          "404": {
+            "description": "Customer does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/error500"
+          }
+        },
+        "deprecated": false
+      }
+    },
+    "/v4/DEBIT_MC_VIRTUAL/customer/{customerId}/account/{accountId}": {
+      "post": {
+        "tags": [
+          "Create card"
+        ],
+        "summary": "Create a debit Mastercard VIRTUAL branded card",
+        "description": "This operation will create a debit card media connected to given customer. An account id needs to be provided as well so we know to which account the card should be connected to.",
+        "operationId": "createDebitMcVirtualV4UsingPOST",
+        "parameters": [
+          {
+            "name": "customerId",
+            "in": "path",
+            "description": "The customer id of which customer you want to create the card on",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "biginteger"
+            }
+          },
+          {
+            "name": "accountId",
+            "in": "path",
+            "description": "The account id that the card should be connected to",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "biginteger"
+            }
+          },
+          {
+            "name": "auditUser",
+            "in": "query",
+            "description": "The audit user to log the request",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/createVirtualResourceBody"
+        },
+        "responses": {
+          "201": {
+            "description": "Successful creation of the product",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/resourceResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/error403"
+          },
+          "404": {
+            "description": "Customer does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/error500"
+          }
+        },
+        "deprecated": false
+      }
+    },
+    "/v4/VISA_CARD/customer/{customerId}/account/{accountId}/{cardRole}": {
+      "post": {
+        "tags": [
+          "Create card"
+        ],
+        "summary": "Create a VISA branded card",
+        "description": "This operation will create a credit or prepaid card media connected to given customer. An account id needs to be provided as well so we know to which account the card should be connected to.",
+        "operationId": "createVisaCardV4UsingPOST",
+        "parameters": [
+          {
+            "name": "customerId",
+            "in": "path",
+            "description": "The customer id of which customer you want to create the card on",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "biginteger"
+            }
+          },
+          {
+            "name": "accountId",
+            "in": "path",
+            "description": "The account id that the card should be connected to",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "biginteger"
+            }
+          },
+          {
+            "name": "cardRole",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/cardRole"
+            }
+          },
+          {
+            "name": "auditUser",
+            "in": "query",
+            "description": "The audit user to log the request",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/createStandardResourceBody"
+        },
+        "responses": {
+          "201": {
+            "description": "Successful creation of the product",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/resourceResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/error403"
+          },
+          "404": {
+            "description": "Customer does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/error500"
+          }
+        },
+        "deprecated": false
+      }
+    },
+    "/v4/VISA_VIRTUAL/customer/{customerId}/account/{accountId}/{cardRole}": {
+      "post": {
+        "tags": [
+          "Create card"
+        ],
+        "summary": "Create a virtual VISA branded card",
+        "description": "This operation will create a credit or prepaid card media connected to  a given customer. An account id needs to be provided as well so we know to which account the card should be connected to.",
+        "operationId": "createVisaVirtualV4UsingPOST",
+        "parameters": [
+          {
+            "name": "customerId",
+            "in": "path",
+            "description": "The customer id of which customer you want to create the card on",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "biginteger"
+            }
+          },
+          {
+            "name": "accountId",
+            "in": "path",
+            "description": "The account id that the card should be connected to",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "biginteger"
+            }
+          },
+          {
+            "name": "cardRole",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/cardRole"
+            }
+          },
+          {
+            "name": "auditUser",
+            "in": "query",
+            "description": "The audit user to log the request",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/createVirtualResourceBody"
+        },
+        "responses": {
+          "201": {
+            "description": "Successful creation of the product",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/resourceResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/error403"
+          },
+          "404": {
+            "description": "Customer does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/error500"
+          }
+        },
+        "deprecated": false
+      }
+    },
+    "/v4/DEBIT_VISA/customer/{customerId}/account/{accountId}": {
+      "post": {
+        "tags": [
+          "Create card"
+        ],
+        "summary": "Create a debit VISA branded card",
+        "description": "This operation will create an debit card media connected to given customer. An account id needs to be provided as well so we know to which account the card should be connected to.",
+        "operationId": "createDebitVisaV4UsingPOST",
+        "parameters": [
+          {
+            "name": "customerId",
+            "in": "path",
+            "description": "The customer id of which customer you want to create the card on",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "biginteger"
+            }
+          },
+          {
+            "name": "accountId",
+            "in": "path",
+            "description": "The account id that the card should be connected to",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "biginteger"
+            }
+          },
+          {
+            "name": "auditUser",
+            "in": "query",
+            "description": "The audit user to log the request",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/createStandardResourceBody"
+        },
+        "responses": {
+          "201": {
+            "description": "Successful creation of the product",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/resourceResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/error403"
+          },
+          "404": {
+            "description": "Customer does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/error500"
+          }
+        },
+        "deprecated": false
+      }
+    },
+    "/v4/DEBIT_VISA_VIRTUAL/customer/{customerId}/account/{accountId}": {
+      "post": {
+        "tags": [
+          "Create card"
+        ],
+        "summary": "Create a debit VISA VIRTUAL branded card",
+        "description": "This operation will create a debit card media connected to given customer. An account id needs to be provided as well so we know to which account the card should be connected to.",
+        "operationId": "createDebitVisaVirtualV4UsingPOST",
+        "parameters": [
+          {
+            "name": "customerId",
+            "in": "path",
+            "description": "The customer id of which customer you want to create the card on",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "biginteger"
+            }
+          },
+          {
+            "name": "accountId",
+            "in": "path",
+            "description": "The account id that the card should be connected to",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "biginteger"
+            }
+          },
+          {
+            "name": "auditUser",
+            "in": "query",
+            "description": "The audit user to log the request",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/createVirtualResourceBody"
+        },
+        "responses": {
+          "201": {
+            "description": "Successful creation of the product",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/resourceResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/error403"
+          },
+          "404": {
+            "description": "Customer does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/error500"
+          }
+        },
+        "deprecated": false
+      }
+    },
+    "/v4/{fleetTemplate}/customer/{customerId}/account/{accountId}/{cardRole}": {
+      "post": {
+        "tags": [
+          "Create card"
+        ],
+        "summary": "Create a fleet card",
+        "description": "This operation will create an credit card media connected to given customer. An account id needs to be provided as well so we know to which account the card should be connected to.",
+        "operationId": "createFleetCardV4UsingPOST",
+        "parameters": [
+          {
+            "name": "fleetTemplate",
+            "in": "path",
+            "description": "Specific fleet template",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/fleetTemplate"
+            }
+          },
+          {
+            "name": "customerId",
+            "in": "path",
+            "description": "The customer id of which customer you want to create the card on",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "biginteger"
+            }
+          },
+          {
+            "name": "accountId",
+            "in": "path",
+            "description": "The account id that the card should be connected to",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "biginteger"
+            }
+          },
+          {
+            "name": "cardRole",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/cardRole"
+            }
+          },
+          {
+            "name": "auditUser",
+            "in": "query",
+            "description": "The audit user to log the request",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/createFleetResourceBody"
+        },
+        "responses": {
+          "201": {
+            "description": "Successful creation of the product",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/resourceResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/error403"
+          },
+          "404": {
+            "description": "Customer does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/error500"
+          }
+        },
+        "deprecated": false
+      }
+    },
+    "/v3/customer/{customerId}/account/{accountId}/{cardRole}": {
+      "post": {
+        "tags": [
+          "Create card"
+        ],
+        "summary": "Create card",
+        "description": "This operation will create an credit card media connected to given customer. An account id needs to be provided as well so we know to which account the card should be connected to.",
+        "operationId": "createUsingPOST",
+        "parameters": [
+          {
+            "name": "customerId",
+            "in": "path",
+            "description": "The customer id of which customer you want to create the card on",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "biginteger"
+            }
+          },
+          {
+            "name": "accountId",
+            "in": "path",
+            "description": "The account id that the card should be connected to",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "biginteger"
+            }
+          },
+          {
+            "name": "cardRole",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/cardRole"
+            }
+          },
+          {
+            "name": "auditUser",
+            "in": "query",
+            "description": "The audit user to log the request",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/createV3ResourceBody"
+        },
+        "responses": {
+          "201": {
+            "description": "Successful creation of the product",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/resourceResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/error403"
+          },
+          "404": {
+            "description": "Customer does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/error500"
+          }
+        },
+        "deprecated": true
+      }
+    },
+    "/v4/{id}": {
+      "get": {
+        "tags": [
+          "Get card"
+        ],
+        "summary": "Get card",
+        "description": "This operation will respond with a card",
+        "operationId": "getCardV4UsingGET",
+        "parameters": [
+          {
+            "name": "auditUser",
+            "in": "query",
+            "description": "The audit user to log the request",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The card id for given card",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "biginteger"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful lookup of the card",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "discriminator": {
+                    "propertyName": "template",
+                    "mapping": {
+                      "MC_CARD": "#/components/schemas/mcCardResponse",
+                      "MC_VIRTUAL": "#/components/schemas/mcVirtualCardResponse",
+                      "DEBIT_MC": "#/components/schemas/mcCardResponse",
+                      "DEBIT_MC_VIRTUAL": "#/components/schemas/mcVirtualCardResponse",
+                      "VISA_CARD": "#/components/schemas/visaCardResponse",
+                      "VISA_VIRTUAL": "#/components/schemas/visaVirtualCardResponse",
+                      "DEBIT_VISA": "#/components/schemas/visaCardResponse",
+                      "DEBIT_VISA_VIRTUAL": "#/components/schemas/visaVirtualCardResponse",
+                      "D_CARD": "#/components/schemas/dCardCardResponse",
+                      "FLEET_CARD": "#/components/schemas/fleetCardResponse",
+                      "FLEET_CARD2": "#/components/schemas/fleetCardResponse",
+                      "FLEET_CARD3": "#/components/schemas/fleetCardResponse",
+                      "FLEET_CARD4": "#/components/schemas/fleetCardResponse",
+                      "MULTI_APPLICATION_CARD": "#/components/schemas/multiApplicationCardResponse"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/error403"
+          },
+          "404": {
+            "description": "Card does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/error500"
+          }
+        },
+        "deprecated": false
+      }
+    },
+    "/v4/card/cardnumber": {
+      "post": {
+        "tags": [
+          "Get card"
+        ],
+        "summary": "Get card using card number (PAN)",
+        "description": "This is a web service designed to lookup an card based on the card number. The payload in the request is \nencrypted with JWE (JSON Web Encryption), to enable end-to-end encryption from source system to Enfuce.\n\n### PCI DSS compliance\nProcessing payment information (PAN, expiry, CVC2/CVV2) is controlled with strict compliance regulations by the\ncard schemes. There are multiple ways to access the card payment information in Enfuce's APIs depending on the\nclient solution, and whether the client is a card schema member themselves and therefore responsible for\ncompliance.\n\nThe alternative shown here (Get card using card number) relies on that the client is responsible for PCI DSS \ncompliance themselves to the card schema.\n",
+        "operationId": "getCardGivenCardNumberV4UsingPOST",
+        "parameters": [
+          {
+            "name": "auditUser",
+            "in": "query",
+            "description": "The audit user to log the request",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/getCardByCardNumberRequestBody"
+        },
+        "responses": {
+          "200": {
+            "description": "Successful lookup of the card",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "discriminator": {
+                    "propertyName": "template",
+                    "mapping": {
+                      "MC_CARD": "#/components/schemas/mcCardResponse",
+                      "MC_VIRTUAL": "#/components/schemas/mcVirtualCardResponse",
+                      "DEBIT_MC": "#/components/schemas/mcCardResponse",
+                      "DEBIT_MC_VIRTUAL": "#/components/schemas/mcVirtualCardResponse",
+                      "VISA_CARD": "#/components/schemas/visaCardResponse",
+                      "VISA_VIRTUAL": "#/components/schemas/visaVirtualCardResponse",
+                      "DEBIT_VISA": "#/components/schemas/visaCardResponse",
+                      "DEBIT_VISA_VIRTUAL": "#/components/schemas/visaVirtualCardResponse",
+                      "D_CARD": "#/components/schemas/dCardCardResponse",
+                      "FLEET_CARD": "#/components/schemas/fleetCardResponse",
+                      "FLEET_CARD2": "#/components/schemas/fleetCardResponse",
+                      "FLEET_CARD3": "#/components/schemas/fleetCardResponse",
+                      "FLEET_CARD4": "#/components/schemas/fleetCardResponse",
+                      "MULTI_APPLICATION_CARD": "#/components/schemas/multiApplicationCardResponse"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/error403"
+          },
+          "404": {
+            "description": "Card does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/error500"
+          }
+        },
+        "deprecated": false
+      }
+    },
+    "/v4/reference/{refNumber}": {
+      "get": {
+        "tags": [
+          "Get card"
+        ],
+        "summary": "Get card using reference number",
+        "description": "This operation will respond with a card",
+        "operationId": "getCardGivenReferenceNumberV4UsingGET",
+        "parameters": [
+          {
+            "name": "auditUser",
+            "in": "query",
+            "description": "The audit user to log the request",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "refNumber",
+            "in": "path",
+            "description": "The card reference number for given card",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful lookup of the card",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "discriminator": {
+                    "propertyName": "template",
+                    "mapping": {
+                      "MC_CARD": "#/components/schemas/mcCardResponse",
+                      "MC_VIRTUAL": "#/components/schemas/mcVirtualCardResponse",
+                      "DEBIT_MC": "#/components/schemas/mcCardResponse",
+                      "DEBIT_MC_VIRTUAL": "#/components/schemas/mcVirtualCardResponse",
+                      "VISA_CARD": "#/components/schemas/visaCardResponse",
+                      "VISA_VIRTUAL": "#/components/schemas/visaVirtualCardResponse",
+                      "DEBIT_VISA": "#/components/schemas/visaCardResponse",
+                      "DEBIT_VISA_VIRTUAL": "#/components/schemas/visaVirtualCardResponse",
+                      "D_CARD": "#/components/schemas/dCardCardResponse",
+                      "FLEET_CARD": "#/components/schemas/fleetCardResponse",
+                      "FLEET_CARD2": "#/components/schemas/fleetCardResponse",
+                      "FLEET_CARD3": "#/components/schemas/fleetCardResponse",
+                      "FLEET_CARD4": "#/components/schemas/fleetCardResponse",
+                      "MULTI_APPLICATION_CARD": "#/components/schemas/multiApplicationCardResponse"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/error403"
+          },
+          "404": {
+            "description": "Card does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/error500"
+          }
+        },
+        "deprecated": false
+      }
+    },
+    "/v4/customer/{customerId}": {
+      "get": {
+        "tags": [
+          "Get card"
+        ],
+        "summary": "Get cards given customerId",
+        "description": "This operation will respond with a list of cards given the customerId",
+        "operationId": "getCardsGivenCustomerIdV4UsingGET",
+        "parameters": [
+          {
+            "name": "auditUser",
+            "in": "query",
+            "description": "The audit user to log the request",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "customerId",
+            "in": "path",
+            "description": "The customer id to fetch list of cards for",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "biginteger"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "Current page",
+            "schema": {
+              "type": "integer",
+              "default": 0
+            }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "description": "How many cards should be returned per page, default is 30. Cannot be more than 100.",
+            "schema": {
+              "type": "integer",
+              "default": 30,
+              "minimum": 1,
+              "exclusiveMinimum": false,
+              "maximum": 100,
+              "exclusiveMaximum": false
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful lookup of cards",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  },
+                  "discriminator": {
+                    "propertyName": "template",
+                    "mapping": {
+                      "MC_CARD": "#/components/schemas/mcCardListResponse",
+                      "MC_VIRTUAL": "#/components/schemas/mcVirtualListResponse",
+                      "DEBIT_MC": "#/components/schemas/debitMcCardListResponse",
+                      "DEBIT_MC_VIRTUAL": "#/components/schemas/debitMcVirtualListResponse",
+                      "VISA_CARD": "#/components/schemas/visaCardListResponse",
+                      "VISA_VIRTUAL": "#/components/schemas/visaVirtualListResponse",
+                      "DEBIT_VISA": "#/components/schemas/debitVisaListResponse",
+                      "DEBIT_VISA_VIRTUAL": "#/components/schemas/debitVisaVirtualListResponse",
+                      "D_CARD": "#/components/schemas/dCardListResponse",
+                      "FLEET_CARD": "#/components/schemas/fleetCardListResponse",
+                      "FLEET_CARD2": "#/components/schemas/fleetCardListResponse",
+                      "FLEET_CARD3": "#/components/schemas/fleetCardListResponse",
+                      "FLEET_CARD4": "#/components/schemas/fleetCardListResponse"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/error403"
+          },
+          "404": {
+            "description": "Customer does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/error500"
+          }
+        },
+        "deprecated": false
+      }
+    },
+    "/v4/account/{accountId}": {
+      "get": {
+        "tags": [
+          "Get card"
+        ],
+        "summary": "Get cards given accountId",
+        "description": "This operation will respond with a list of cards given the accountId",
+        "operationId": "getCardsGivenAccountIdV4UsingGET",
+        "parameters": [
+          {
+            "name": "auditUser",
+            "in": "query",
+            "description": "The audit user to log the request",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "accountId",
+            "in": "path",
+            "description": "The account id to fetch list of cards for",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "biginteger"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "Current page",
+            "schema": {
+              "type": "integer",
+              "default": 0
+            }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "description": "How many cards should be returned per page, default is 30. Cannot be more than 100.",
+            "schema": {
+              "type": "integer",
+              "default": 30,
+              "minimum": 1,
+              "exclusiveMinimum": false,
+              "maximum": 100,
+              "exclusiveMaximum": false
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful lookup of cards",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  },
+                  "discriminator": {
+                    "propertyName": "template",
+                    "mapping": {
+                      "MC_CARD": "#/components/schemas/mcCardListResponse",
+                      "MC_VIRTUAL": "#/components/schemas/mcVirtualListResponse",
+                      "DEBIT_MC": "#/components/schemas/debitMcCardListResponse",
+                      "DEBIT_MC_VIRTUAL": "#/components/schemas/debitMcVirtualListResponse",
+                      "VISA_CARD": "#/components/schemas/visaCardListResponse",
+                      "VISA_VIRTUAL": "#/components/schemas/visaVirtualListResponse",
+                      "DEBIT_VISA": "#/components/schemas/debitVisaListResponse",
+                      "DEBIT_VISA_VIRTUAL": "#/components/schemas/debitVisaVirtualListResponse",
+                      "D_CARD": "#/components/schemas/dCardListResponse",
+                      "FLEET_CARD": "#/components/schemas/fleetCardListResponse",
+                      "FLEET_CARD2": "#/components/schemas/fleetCardListResponse",
+                      "FLEET_CARD3": "#/components/schemas/fleetCardListResponse",
+                      "FLEET_CARD4": "#/components/schemas/fleetCardListResponse"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/error403"
+          },
+          "404": {
+            "description": "Customer does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/error500"
+          }
+        },
+        "deprecated": false
+      }
+    },
+    "/v3/{id}/encryptcardpaymentinfo": {
+      "post": {
+        "tags": [
+          "Get card"
+        ],
+        "summary": "Get Card Payment Info",
+        "description": "This is a web service designed to give the card payment information needed for doing e-commerce payments, meaning full PAN, cvc2/cvv2, expiry date. The\npayload will be encrypted with an asymmetric public key, to enable end-to-end encryption to the card holder device. Only fields listed in the request 'fields'\nobject will be returned. The caller is responsible of validating the integrity of the public key.\n\n### PCI DSS compliance\nProcessing payment information (PAN, expiry, CVC2/CVV2) is controlled with strict compliance regulations by the\ncard schemes. There are multiple ways to access the card payment information in Enfuce's APIs depending on the\nclient solution, and whether the client is a card schema member themselves and therefore responsible for\ncompliance.\n\nThe least complex way to take this functionality into use and keep your own systems outside the PCI DSS scope is\nto use the **Initiate card data retrieval** ( see /v4/card/{cardId}/controlToken below in this document).\nWith that endpoint, the sensitive data is transported end-to-end between Enfuce's service and the card-holder\ndevice, which keeps the client's back-end systems outside of PCI DSS scope.\n\nThe alternative shown here (Get Card Payment Info) relies on that the client is responsible for PCI DSS compliance\nthemselves to the card schema.\n\n### Example\n    // ...\n\n    import java.security.KeyFactory;\n    import java.security.PrivateKey;\n    import java.security.spec.PKCS8EncodedKeySpec;\n    import java.util.Base64;\n    import javax.crypto.Cipher;\n\n    // ...\n\n    // Example of how to decrypt an encrypted field\n    private String decrypt(String data, String privKeyPEM) throws Exception {\n\n      // Prepare the key\n      String privKeyString = privKeyPEM.replaceAll(\"\\\\n\", \"\").replace(\"-----BEGIN PRIVATE KEY-----\", \"\").replace(\"-----END PRIVATE KEY-----\", \"\");\n      byte[] encodedKey = Base64.getDecoder().decode(privKeyString);\n      PKCS8EncodedKeySpec spec = new PKCS8EncodedKeySpec(encodedKey);\n      KeyFactory kf = KeyFactory.getInstance(\"RSA\");\n      PrivateKey privateKey = kf.generatePrivate(spec);\n\n      // Prepare the decryption\n      Cipher cipher = Cipher.getInstance(\"RSA/ECB/OAEPWithSHA-256AndMGF1Padding\");\n      cipher.init(Cipher.DECRYPT_MODE, privateKey);\n\n      // Prepare the data\n      byte[] cryptogram = Base64.getDecoder().decode(data);\n\n      // Decrypt\n      byte[] decryptedBytes = cipher.doFinal(cryptogram);\n      return new String(decryptedBytes);\n    }\n",
+        "operationId": "encryptCardPaymentInfoPOST",
+        "parameters": [
+          {
+            "name": "auditUser",
+            "in": "query",
+            "description": "The audit user to log the request",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The card id for given card",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "biginteger"
+            }
+          }
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/encryptCardPaymentInfoRequestBody"
+        },
+        "responses": {
+          "200": {
+            "description": "Successful lookup and encryption of the card payment info.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/encryptCardPaymentInfoResponseBody"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Encryption key error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/error403"
+          },
+          "404": {
+            "description": "Card does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/error500"
+          }
+        },
+        "deprecated": false
+      }
+    },
+    "/v4/card/{cardId}/controlToken": {
+      "post": {
+        "tags": [
+          "Get card"
+        ],
+        "summary": "Initiate card data retrieval",
+        "description": "Endpoint to initiate retrieval of card data. This will enable the end user make e-commerce transactions without \nneeding access to a plastic card. This means that the end user will get access to card number (PAN), expiry \ndate and CVC2/CVV2. This operation will generate an access token used to view the card data, enabling end users \nto access their card data through their own devices, via app or web interface.\n\nSupporting the possibility to copy the card data to the devices clipboard should be examined with caution. \nThe data lifespan and the access to the device clipboards varies between operating systems which introduces \nrisk. So while recognising that the possibility to copy the card data can improve end-user experience, \nthe potential increased risk of such a feature should be considered.\n\n### Process description\n\n![ Example user experience ](https://enfuce-public-resources.s3.eu-central-1.amazonaws.com/public/pan-view-flow.jpg)\n\n1. End user request to see the card data (Pan number, exp. date and CVV) through its own devices, via app or \n   web interface.\n2. The end user request triggers a request to Enfuce Card API (/v4/card/{cardId}/controlToken)\n    * The request will fail if cardId is not valid.\n    * Besides cardId, no additional validation is done. This means that Enfuce will not validate open-to-buy, \n      card status or usage limiters of the card when responding to request. In order to validate if a purchase \n      can be done with card data in question, separate API calls should be done to retrieve real time status \n      of card and it´s balance.\n3. The successful response from this endpoint returns a token and two URLs\n    * Note the token is valid for 30 seconds which is the deadline for the end user device to make \n      the POST call to retrieve the HTML snapshot\n4. The end users device is instructed to access the returned URL to view the card data\n    * Mobile app retrieves the HTML snapshot with card data by executing a POST call to the cardDataUrl \n      with the content of the token in a form field named token.\n    * Desktop browser opens iframe to cardDataFrameUrl with query parameter _key_. Key needs to agreed with \n      Enfuce beforehand. After that is loaded, parent page makes window.postMessage() call to the iframe. \n      Posted message object contains field _operation_ with value _view-pan_ and field _token_. Example:\n      ```javascript \n      iframe.addEventListener('load', () => { \n        iframe.contentWindow.postMessage({operation: 'view-pan', token}, cardDataFrameUrl);\n      })\n      ```\n5. Enfuce responds with a HTML snapshot containing the card data.\n    * The request will fail if the token is not valid.\n   ![ Example user experience ](https://enfuce-public-resources.s3.eu-central-1.amazonaws.com/public/pan-html-example.png)\n6. End user sees card data on device and can utilise it to make a purchase.\n\n### PCI and security considerations\nThe service is designed to avoid exposure of sensitive, PCI categorised data to the web/app back-end, \ntherefore the card data is sent directly from the service endpoint to the end users device. The functionality \nis developed, assessed, and certified for PCI DSS. PCI DSS regulations are detailed, but highlighting \na few that have impact on the this functionality:\n\n* Card data remains encrypted in transport.\n* No card data is stored in the process.\n* The software is code reviewed.\n* The publicly exposed endpoint is protected by a web application firewall.\n\nThe end user device will not fall within PCI scope, as it will not have access, be connected to or be able \nto impact Enfuce system where the card data resides. In other words, the device displaying the card data does \nnot access the data itself, rather the content is rendered inside browser widget (Webview or Iframe).\n\nEnfuce recommendations for end user app development:\n* The app and the related back-end should ensure that the user is strongly authenticated (SCA) before being \n  able to view the card data. It is recommended, that each view is preceded by an SCA event, and this should be \n  done for every view event.\n* The app must show the card data for only the time needed for the user to use this data and it is recommended \n  that there is a timeout of 1 minute until the card holder data view is automatically closed for the user.\n* The app developers need to take necessary precautions to stop other apps or processes to access or interact \n  with the card data view.\n* The app developers need to ensure that the communication between the app and the related back-end is done \n  in an authenticated and encrypted session.\n",
+        "operationId": "createCardDataControlTokenByCardIdV4UsingPOST",
+        "parameters": [
+          {
+            "name": "cardId",
+            "in": "path",
+            "description": "The id of the card's data requested",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "biginteger"
+            }
+          },
+          {
+            "name": "auditUser",
+            "in": "query",
+            "description": "The audit user to log the request",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful creation of the control token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CardDataControlTokenResponseBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/error403"
+          },
+          "404": {
+            "description": "Card Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/error500"
+          }
+        },
+        "deprecated": false
+      }
+    },
+    "/v3/customer/{customerId}": {
+      "get": {
+        "tags": [
+          "Get card"
+        ],
+        "summary": "Get cards given customerId",
+        "description": "This operation will respond with a list of cards given the customerId",
+        "operationId": "getCardsGivenCustomerIdUsingGET",
+        "parameters": [
+          {
+            "name": "auditUser",
+            "in": "query",
+            "description": "The audit user to log the request",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "customerId",
+            "in": "path",
+            "description": "The customer id to fetch list of cards for",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "biginteger"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "Current page",
+            "schema": {
+              "type": "integer",
+              "default": 0
+            }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "description": "How many cards should be returned per page, default is 30. Cannot be more than 100.",
+            "schema": {
+              "type": "integer",
+              "default": 30,
+              "minimum": 1,
+              "exclusiveMinimum": false,
+              "maximum": 100,
+              "exclusiveMaximum": false
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful lookup of cards",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/listV3CardResponse"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/error403"
+          },
+          "404": {
+            "description": "Customer does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/error500"
+          }
+        },
+        "deprecated": true
+      }
+    },
+    "/v3/account/{accountId}": {
+      "get": {
+        "tags": [
+          "Get card"
+        ],
+        "summary": "Get cards given accountId",
+        "description": "This operation will respond with a list of cards given the accountId",
+        "operationId": "getCardsGivenAccountIdUsingGET",
+        "parameters": [
+          {
+            "name": "auditUser",
+            "in": "query",
+            "description": "The audit user to log the request",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "accountId",
+            "in": "path",
+            "description": "The account id to fetch list of cards for",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "biginteger"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "Current page",
+            "schema": {
+              "type": "integer",
+              "default": 0
+            }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "description": "How many cards should be returned per page, default is 30. Cannot be more than 100.",
+            "schema": {
+              "type": "integer",
+              "default": 30,
+              "minimum": 1,
+              "exclusiveMinimum": false,
+              "maximum": 100,
+              "exclusiveMaximum": false
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful lookup of cards",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/listV3CardResponse"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/error403"
+          },
+          "404": {
+            "description": "Customer does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/error500"
+          }
+        },
+        "deprecated": true
+      }
+    },
+    "/v3/{id}/update/{propertyToUpdate}": {
+      "post": {
+        "tags": [
+          "Update card"
+        ],
+        "summary": "Update card",
+        "description": "Basic operation for updating a card. Check parameter updateProperty for possible parameters to update",
+        "operationId": "updateCardUsingPOST",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The card id of which card you want to update",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "biginteger"
+            }
+          },
+          {
+            "name": "auditUser",
+            "in": "query",
+            "description": "The audit user to log the request",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "propertyToUpdate",
+            "in": "path",
+            "description": "What property you want to update\n   * __DELETE_PIN_ADDRESS__ - if separate PIN delivery addresses are used, this is used to remove the address. PIN will be delivered to client address if separate PIN address doesn´t exist\n   * __DELETE_CARD_ADDRESS__ - if separate Card delivery addresses are used, this is used to remove the address. Card will be delivered to client address if separate Card address doesn´t exist\n   * __REPLACE_CARD__ - used when new card with new PAN is required, e.g. if previous card is lost\n   * __REISSUE_CARD__ - used when new card with existing PAN is required, e.g. if previous card is damaged\n   * __REORDER_CARD_PIN__ - used to re-order existing PIN if cardholder has forgotten it\n   * __RESET_PIN_ATTEMPT__- used to reset the amount of online PIN attempts\n   * __SET_3DS_STATIC_PWD__- used to set or update 3DS authentication static password (4-16 alphanumeric characters only)\n",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "DELETE_PIN_ADDRESS",
+                "DELETE_CARD_ADDRESS",
+                "REPLACE_CARD",
+                "REISSUE_CARD",
+                "REORDER_CARD_PIN",
+                "RESET_PIN_ATTEMPT",
+                "SET_3DS_STATIC_PWD"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/updateResourceBody"
+        },
+        "responses": {
+          "200": {
+            "description": "Successful update of card",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/resourceResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Given property to update is invalid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/error403"
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/error500"
+          }
+        },
+        "deprecated": false
+      }
+    },
+    "/v4/MC_CARD/{id}": {
+      "patch": {
+        "tags": [
+          "Update card"
+        ],
+        "summary": "Update a Mastercard branded card",
+        "description": "This operation will update given fields given a card id",
+        "operationId": "updateMcCardV4UsingPATCH",
+        "parameters": [
+          {
+            "name": "auditUser",
+            "in": "query",
+            "description": "The audit user to log the request",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The card id for given card",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "biginteger"
+            }
+          }
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/patchStandardResourceBody"
+        },
+        "responses": {
+          "200": {
+            "description": "Successful update of the card",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/resourceResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/error403"
+          },
+          "404": {
+            "description": "Entity does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/error500"
+          }
+        },
+        "deprecated": false
+      }
+    },
+    "/v4/MC_VIRTUAL/{id}": {
+      "patch": {
+        "tags": [
+          "Update card"
+        ],
+        "summary": "Update a virtual Mastercard branded card",
+        "description": "This operation will update given fields given a card id",
+        "operationId": "updateMCVirtualV4UsingPATCH",
+        "parameters": [
+          {
+            "name": "auditUser",
+            "in": "query",
+            "description": "The audit user to log the request",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The card id for given card",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "biginteger"
+            }
+          }
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/patchVirtualResourceBody"
+        },
+        "responses": {
+          "200": {
+            "description": "Successful update of the card",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/resourceResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/error403"
+          },
+          "404": {
+            "description": "Entity does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/error500"
+          }
+        },
+        "deprecated": false
+      }
+    },
+    "/v4/DEBIT_MC/{id}": {
+      "patch": {
+        "tags": [
+          "Update card"
+        ],
+        "summary": "Update a debit Mastercard branded card",
+        "description": "This operation will update given fields given a card id",
+        "operationId": "updateDebitMcV4UsingPATCH",
+        "parameters": [
+          {
+            "name": "auditUser",
+            "in": "query",
+            "description": "The audit user to log the request",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The card id for given card",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "biginteger"
+            }
+          }
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/patchStandardResourceBody"
+        },
+        "responses": {
+          "200": {
+            "description": "Successful update of the card",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/resourceResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/error403"
+          },
+          "404": {
+            "description": "Entity does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/error500"
+          }
+        },
+        "deprecated": false
+      }
+    },
+    "/v4/DEBIT_MC_VIRTUAL/{id}": {
+      "patch": {
+        "tags": [
+          "Update card"
+        ],
+        "summary": "Update a virtual debit Mastercard branded card",
+        "description": "This operation will update given fields given a card id",
+        "operationId": "updateDebitMcVirtualV4UsingPATCH",
+        "parameters": [
+          {
+            "name": "auditUser",
+            "in": "query",
+            "description": "The audit user to log the request",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The card id for given card",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "biginteger"
+            }
+          }
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/patchVirtualResourceBody"
+        },
+        "responses": {
+          "200": {
+            "description": "Successful update of the card",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/resourceResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/error403"
+          },
+          "404": {
+            "description": "Entity does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/error500"
+          }
+        },
+        "deprecated": false
+      }
+    },
+    "/v4/VISA_CARD/{id}": {
+      "patch": {
+        "tags": [
+          "Update card"
+        ],
+        "summary": "Update a VISA branded card",
+        "description": "This operation will update given fields given a card id",
+        "operationId": "updateVisaCardV4UsingPATCH",
+        "parameters": [
+          {
+            "name": "auditUser",
+            "in": "query",
+            "description": "The audit user to log the request",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The card id for given card",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "biginteger"
+            }
+          }
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/patchStandardResourceBody"
+        },
+        "responses": {
+          "200": {
+            "description": "Successful update of the card",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/resourceResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/error403"
+          },
+          "404": {
+            "description": "Entity does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/error500"
+          }
+        },
+        "deprecated": false
+      }
+    },
+    "/v4/VISA_VIRTUAL/{id}": {
+      "patch": {
+        "tags": [
+          "Update card"
+        ],
+        "summary": "Update a virtual VISA branded card",
+        "description": "This operation will update given fields given a card id",
+        "operationId": "updateVisaVirtualV4UsingPATCH",
+        "parameters": [
+          {
+            "name": "auditUser",
+            "in": "query",
+            "description": "The audit user to log the request",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The card id for given card",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "biginteger"
+            }
+          }
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/patchVirtualResourceBody"
+        },
+        "responses": {
+          "200": {
+            "description": "Successful update of the card",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/resourceResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/error403"
+          },
+          "404": {
+            "description": "Entity does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/error500"
+          }
+        },
+        "deprecated": false
+      }
+    },
+    "/v4/DEBIT_VISA/{id}": {
+      "patch": {
+        "tags": [
+          "Update card"
+        ],
+        "summary": "Update a debit VISA branded card",
+        "description": "This operation will update given fields given a card id",
+        "operationId": "updateDebitVisaV4UsingPATCH",
+        "parameters": [
+          {
+            "name": "auditUser",
+            "in": "query",
+            "description": "The audit user to log the request",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The card id for given card",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "biginteger"
+            }
+          }
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/patchStandardResourceBody"
+        },
+        "responses": {
+          "200": {
+            "description": "Successful update of the card",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/resourceResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/error403"
+          },
+          "404": {
+            "description": "Entity does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/error500"
+          }
+        },
+        "deprecated": false
+      }
+    },
+    "/v4/DEBIT_VISA_VIRTUAL/{id}": {
+      "patch": {
+        "tags": [
+          "Update card"
+        ],
+        "summary": "Update a virtual debit VISA branded card",
+        "description": "This operation will update given fields given a card id",
+        "operationId": "updateDebitVisaVirtualV4UsingPATCH",
+        "parameters": [
+          {
+            "name": "auditUser",
+            "in": "query",
+            "description": "The audit user to log the request",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The card id for given card",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "biginteger"
+            }
+          }
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/patchVirtualResourceBody"
+        },
+        "responses": {
+          "200": {
+            "description": "Successful update of the card",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/resourceResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/error403"
+          },
+          "404": {
+            "description": "Entity does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/error500"
+          }
+        },
+        "deprecated": false
+      }
+    },
+    "/v4/{fleetTemplate}/{id}": {
+      "patch": {
+        "tags": [
+          "Update card"
+        ],
+        "summary": "Update a fleet card",
+        "description": "This operation will update given fields given a card id",
+        "operationId": "updateDCardV4UsingPATCH",
+        "parameters": [
+          {
+            "name": "fleetTemplate",
+            "in": "path",
+            "description": "Specific fleet template",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/fleetTemplate"
+            }
+          },
+          {
+            "name": "auditUser",
+            "in": "query",
+            "description": "The audit user to log the request",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The card id for given card",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "biginteger"
+            }
+          }
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/patchFleetResourceBody"
+        },
+        "responses": {
+          "200": {
+            "description": "Successful update of the card",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/resourceResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/error403"
+          },
+          "404": {
+            "description": "Entity does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/error500"
+          }
+        },
+        "deprecated": false
+      }
+    },
+    "/v3/{id}": {
+      "get": {
+        "tags": [
+          "Get card"
+        ],
+        "summary": "Get card",
+        "description": "This operation will respond with a card",
+        "operationId": "getCardUsingGET",
+        "parameters": [
+          {
+            "name": "auditUser",
+            "in": "query",
+            "description": "The audit user to log the request",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The card id for given card",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "biginteger"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful lookup of the card",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/cardV3Response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/error403"
+          },
+          "404": {
+            "description": "Card does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/error500"
+          }
+        },
+        "deprecated": true
+      },
+      "patch": {
+        "tags": [
+          "Update card"
+        ],
+        "summary": "Update card",
+        "description": "This operation will update given fields given a card id",
+        "operationId": "updateCardUsingPATCH",
+        "parameters": [
+          {
+            "name": "auditUser",
+            "in": "query",
+            "description": "The audit user to log the request",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The card id for given card",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "biginteger"
+            }
+          }
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/patchV3ResourceBody"
+        },
+        "responses": {
+          "200": {
+            "description": "Successful update of the card",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/resourceResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/error403"
+          },
+          "404": {
+            "description": "Entity does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/error500"
+          }
+        },
+        "deprecated": true
+      }
+    },
+    "/v3/{id}/plastic": {
+      "get": {
+        "tags": [
+          "Get plastic"
+        ],
+        "summary": "Get a list of plastics for a given card",
+        "description": "This operation will respond with a list of plastics",
+        "operationId": "getCardPlasticsUsingGET",
+        "parameters": [
+          {
+            "name": "auditUser",
+            "in": "query",
+            "description": "The audit user to log the request",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The card id for given card",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "biginteger"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful lookup of plastics",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/listPlasticResponse"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/error403"
+          },
+          "404": {
+            "description": "Card does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/error500"
+          }
+        },
+        "deprecated": false
+      }
+    },
+    "/v3/{id}/plastic/{plasticId}/emv_script": {
+      "get": {
+        "tags": [
+          "Get EMV scripts"
+        ],
+        "summary": "Get a list of EMV scripts for a given plastic",
+        "description": "This operation will return a list of EMV script statuses",
+        "operationId": "getEmvScriptsUsingGET",
+        "parameters": [
+          {
+            "name": "auditUser",
+            "in": "query",
+            "description": "The audit user to log the request",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The card id for given card",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/id"
+            }
+          },
+          {
+            "name": "plasticId",
+            "in": "path",
+            "description": "The plastic id for given card",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/plasticId"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "Current page",
+            "schema": {
+              "type": "integer",
+              "default": 0
+            }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "description": "How many EMV scripts should be returned per page, default is 15. Cannot be more than 30.",
+            "schema": {
+              "type": "integer",
+              "default": 15,
+              "minimum": 1,
+              "exclusiveMinimum": false,
+              "maximum": 30,
+              "exclusiveMaximum": false
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful lookup of EMV scripts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/emvScriptsStatusResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/error403"
+          },
+          "404": {
+            "description": "Card/Plastic does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/error500"
+          }
+        },
+        "deprecated": false
+      }
+    },
+    "/v3/{id}/plastic/{plasticId}/update/{propertyToUpdate}": {
+      "post": {
+        "tags": [
+          "Update plastic"
+        ],
+        "summary": "Update plastic",
+        "description": "This operation will update a given plastic for a card",
+        "operationId": "updateCardPlasticUsingPOST",
+        "parameters": [
+          {
+            "name": "auditUser",
+            "in": "query",
+            "description": "The audit user to log the request",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The card id for given card",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "biginteger"
+            }
+          },
+          {
+            "name": "plasticId",
+            "in": "path",
+            "description": "The plastic id for given plastic",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "biginteger"
+            }
+          },
+          {
+            "name": "propertyToUpdate",
+            "in": "path",
+            "description": "This operation will update a given plastic for a card. Depending on what property you want to update:\n- ACTIVATE - If a plastic is not automatically active, then it is possible to manually activate it. This setting depends on default configuration\n- CANCEL - If embossing has not been run it is possible to cancel production of a physical card. When this is done the plastic and that id will be deleted and not visible anymore. Note this can only be done as long a plastic is in status *INACTIVE*.\n### Cancelling a new card order\nWhen production of physical plastic is cancelled, the cancellation will not affect to the status of the card. So even plastic order is cancelled the status of the card remains the same. If a completely new card is cancelled, then it is important to update card status to Card Closed.\n### Cancelling a reissued card\nWhen production of physical plastic is cancelled, the cancellation will not affect to the status of the card. Reissue cases there usually isn't a need to change the status of the card if intention is that end user still wants to use the current card.\n",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ACTIVATE",
+                "CANCEL"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful update of plastic",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/resourceResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/error403"
+          },
+          "404": {
+            "description": "Card does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/error500"
+          }
+        },
+        "deprecated": false
+      }
+    }
+  },
+  "components": {
+    "requestBodies": {
+      "createV3ResourceBody": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/createV3ResourceBody"
+            }
+          }
+        },
+        "description": "The fields that you want to apply to your newly created card, these values will override the predefined template values",
+        "required": true
+      },
+      "createStandardResourceBody": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/createStandardResourceBody"
+            }
+          }
+        },
+        "description": "The fields that you want to apply to your newly created card, these values will override the predefined template values",
+        "required": true
+      },
+      "createMultiApplicationCardResourceBody": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/createMultiApplicationCardResourceBody"
+            }
+          }
+        },
+        "description": "The fields that you want to apply to your newly created card, these values will override the predefined template values",
+        "required": true
+      },
+      "createVirtualResourceBody": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/createVirtualResourceBody"
+            }
+          }
+        },
+        "description": "The fields that you want to apply to your newly created card, these values will override the predefined template values",
+        "required": true
+      },
+      "createFleetResourceBody": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/createFleetResourceBody"
+            }
+          }
+        },
+        "description": "The fields that you want to apply to your newly created card, these values will override the predefined template values",
+        "required": true
+      },
+      "updateResourceBody": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/updateResourceBody"
+            }
+          }
+        },
+        "description": "The new value of selected property. You should only provide a value for the property you want to update, the other ones should be null",
+        "required": false
+      },
+      "patchV3ResourceBody": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/patchV3ResourceBody"
+            }
+          }
+        },
+        "description": "The new value of selected property. You should only provide a value for the property you want to update, the other ones should be null",
+        "required": true
+      },
+      "patchStandardResourceBody": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/patchStandardResourceBody"
+            }
+          }
+        },
+        "description": "The new value of selected property. You should only provide a value for the property you want to update, the other ones should be null",
+        "required": true
+      },
+      "patchMultiApplicationResourceBody": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/patchMultiApplicationResourceBody"
+            }
+          }
+        },
+        "description": "The new value of selected property. You should only provide a value for the property you want to update, the other ones should be null",
+        "required": true
+      },
+      "patchApplicationResourceBody": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/patchApplicationResourceBody"
+            }
+          }
+        },
+        "description": "The new value of selected property. You should only provide a value for the property you want to update, the other ones should be null",
+        "required": true
+      },
+      "patchVirtualResourceBody": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/patchVirtualResourceBody"
+            }
+          }
+        },
+        "description": "The new value of selected property. You should only provide a value for the property you want to update, the other ones should be null",
+        "required": true
+      },
+      "patchFleetResourceBody": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/patchFleetResourceBody"
+            }
+          }
+        },
+        "description": "The new value of selected property. You should only provide a value for the property you want to update, the other ones should be null",
+        "required": true
+      },
+      "encryptCardPaymentInfoRequestBody": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/encryptCardPaymentInfoRequestBody"
+            }
+          }
+        },
+        "description": "Request information needed to encrypt the card payment info",
+        "required": true
+      },
+      "getCardByCardNumberRequestBody": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/getCardByCardNumberRequestBody"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "createV3ResourceBody": {
+        "type": "object",
+        "required": [
+          "cardTemplate",
+          "embossing"
+        ],
+        "properties": {
+          "cardTemplate": {
+            "type": "string",
+            "description": "Card template of the new card to be created"
+          },
+          "embossing": {
+            "$ref": "#/components/schemas/embossing"
+          },
+          "expiration": {
+            "$ref": "#/components/schemas/expiration"
+          },
+          "pinAddress": {
+            "description": "Address used to deliver pin",
+            "$ref": "#/components/schemas/address"
+          },
+          "cardAddress": {
+            "description": "Address used to deliver card",
+            "$ref": "#/components/schemas/address"
+          },
+          "segment": {
+            "$ref": "#/components/schemas/segment"
+          },
+          "pinStatus": {
+            "$ref": "#/components/schemas/pinStatus"
+          }
+        },
+        "title": "createResourceBody"
+      },
+      "createBaseResourceBody": {
+        "type": "object",
+        "properties": {
+          "expiration": {
+            "$ref": "#/components/schemas/expiration"
+          },
+          "segment": {
+            "$ref": "#/components/schemas/segment"
+          },
+          "pinStatus": {
+            "$ref": "#/components/schemas/pinStatus"
+          },
+          "digitalLayoutCode": {
+            "$ref": "#/components/schemas/digitalLayoutCode"
+          },
+          "scheduledClosing": {
+            "$ref": "#/components/schemas/scheduledClosing"
+          },
+          "additionalValues": {
+            "$ref": "#/components/schemas/additionalValues"
+          },
+          "encryptedData": {
+            "type": "string",
+            "description": "JWE encrypted card number, see details above"
+          }
+        },
+        "title": "createResourceBody"
+      },
+      "createMultiApplicationCardResourceBody": {
+        "required": [
+          "mainApplication",
+          "applications"
+        ],
+        "properties": {
+          "mainApplication": {
+            "$ref": "#/components/schemas/createApplication"
+          },
+          "applications": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "#/components/schemas/createApplication"
+            }
+          },
+          "cardAddress": {
+            "description": "Address used to deliver card",
+            "$ref": "#/components/schemas/address"
+          },
+          "embossing": {
+            "$ref": "#/components/schemas/embossing"
+          },
+          "expiration": {
+            "$ref": "#/components/schemas/expiration"
+          },
+          "segment": {
+            "$ref": "#/components/schemas/segment"
+          },
+          "pinAddress": {
+            "description": "Address used to deliver pin",
+            "$ref": "#/components/schemas/address"
+          },
+          "pinStatus": {
+            "$ref": "#/components/schemas/pinStatus"
+          }
+        },
+        "title": "createMultiApplicationCardResourceBody"
+      },
+      "createStandardResourceBody": {
+        "required": [
+          "embossing"
+        ],
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/createBaseResourceBody"
+          },
+          {
+            "properties": {
+              "embossing": {
+                "$ref": "#/components/schemas/embossing"
+              },
+              "productCode": {
+                "$ref": "#/components/schemas/productCode"
+              },
+              "pinAddress": {
+                "description": "Address used to deliver pin",
+                "$ref": "#/components/schemas/address"
+              },
+              "cardAddress": {
+                "description": "Address used to deliver card",
+                "$ref": "#/components/schemas/address"
+              }
+            }
+          }
+        ],
+        "title": "createStandardResourceBody"
+      },
+      "createVirtualResourceBody": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/createBaseResourceBody"
+          },
+          {
+            "properties": {
+              "embossing": {
+                "$ref": "#/components/schemas/embossing"
+              },
+              "productCode": {
+                "$ref": "#/components/schemas/productCode"
+              }
+            }
+          }
+        ],
+        "title": "createVirtualResourceBody"
+      },
+      "createFleetResourceBody": {
+        "required": [
+          "creditLimit"
+        ],
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/createStandardResourceBody"
+          },
+          {
+            "properties": {
+              "allowedPurchaseCategories": {
+                "$ref": "#/components/schemas/allowedPurchaseCategories"
+              },
+              "branchId": {
+                "type": "string",
+                "description": "Field that can be populated in order to group cards together",
+                "maxLength": 6
+              },
+              "branchName": {
+                "type": "string",
+                "description": "Field that can be populated in order to group cards together",
+                "maxLength": 64
+              },
+              "extraTerminalInformation": {
+                "$ref": "#/components/schemas/extraTerminalInformation"
+              }
+            }
+          }
+        ],
+        "title": "createFleetResourceBody"
+      },
+      "updateResourceBody": {
+        "type": "object",
+        "properties": {
+          "cardExpiryDate": {
+            "type": "string",
+            "description": "Test field for now that can be ignored, will require more configuration if we choose to use it in the future.",
+            "pattern": "^[\\d]{4}$"
+          },
+          "cardTdsStaticPassword": {
+            "type": "string",
+            "description": "Field that can be populated to set or update 3DS static password on the card (Alphanumeric characters only)",
+            "minLength": 4,
+            "maxLength": 16,
+            "pattern": "^[a-zA-Z0-9]*$"
+          }
+        },
+        "title": "updateResourceBody",
+        "description": "Should set the value of the property you are updating, leave rest empty"
+      },
+      "patchV3ResourceBody": {
+        "type": "object",
+        "properties": {
+          "accountId": {
+            "$ref": "#/components/schemas/accountId"
+          },
+          "cardAddress": {
+            "description": "Address used to deliver card. Full address object is expected to be set when updating.",
+            "$ref": "#/components/schemas/address"
+          },
+          "cardDeliveryType": {
+            "$ref": "#/components/schemas/cardDeliveryType"
+          },
+          "customerId": {
+            "$ref": "#/components/schemas/customerId"
+          },
+          "embossing": {
+            "$ref": "#/components/schemas/embossing"
+          },
+          "pinAddress": {
+            "description": "Address used to deliver pin. Full address object is expected to be set when updating.",
+            "$ref": "#/components/schemas/address"
+          },
+          "pinDeliveryType": {
+            "$ref": "#/components/schemas/pinDeliveryType"
+          },
+          "regionAndEcommBlocking": {
+            "$ref": "#/components/schemas/regionAndEcommBlocking"
+          },
+          "reason": {
+            "$ref": "#/components/schemas/reason"
+          },
+          "segment": {
+            "$ref": "#/components/schemas/segment"
+          },
+          "status": {
+            "$ref": "#/components/schemas/cardStatusPatch"
+          },
+          "usageLimits": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/usageLimit"
+            },
+            "description": "Usage limits"
+          },
+          "pinStatus": {
+            "$ref": "#/components/schemas/pinStatus"
+          }
+        },
+        "title": "patchV3ResourceBody"
+      },
+      "listV3CardResponse": {
+        "type": "object",
+        "properties": {
+          "accountId": {
+            "$ref": "#/components/schemas/accountId"
+          },
+          "id": {
+            "$ref": "#/components/schemas/id"
+          },
+          "customerId": {
+            "$ref": "#/components/schemas/customerId"
+          },
+          "cardRole": {
+            "$ref": "#/components/schemas/cardRole"
+          },
+          "status": {
+            "$ref": "#/components/schemas/cardStatus"
+          },
+          "truncatedCardNumber": {
+            "type": "string"
+          }
+        },
+        "title": "listV3CardResponse"
+      },
+      "cardV3Response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/listV3CardResponse"
+          },
+          {
+            "properties": {
+              "cardAddress": {
+                "description": "Address used to deliver card",
+                "$ref": "#/components/schemas/address"
+              },
+              "cardDeliveryType": {
+                "$ref": "#/components/schemas/cardDeliveryType"
+              },
+              "cardTemplate": {
+                "type": "string",
+                "description": "Template name for which the card is connected to"
+              },
+              "statusDate": {
+                "$ref": "#/components/schemas/statusDate"
+              },
+              "embossing": {
+                "$ref": "#/components/schemas/embossing"
+              },
+              "expiration": {
+                "$ref": "#/components/schemas/expiration"
+              },
+              "pinAddress": {
+                "description": "Address used to deliver pin",
+                "$ref": "#/components/schemas/address"
+              },
+              "pinAttempts": {
+                "$ref": "#/components/schemas/pinAttempts"
+              },
+              "pinDeliveryType": {
+                "$ref": "#/components/schemas/pinDeliveryType"
+              },
+              "regionAndEcommBlocking": {
+                "$ref": "#/components/schemas/regionAndEcommBlocking"
+              },
+              "reason": {
+                "description": "Reason for card status change",
+                "$ref": "#/components/schemas/reason"
+              },
+              "segment": {
+                "$ref": "#/components/schemas/segment"
+              },
+              "usageLimits": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/usageLimit"
+                }
+              },
+              "pinStatus": {
+                "$ref": "#/components/schemas/pinStatus"
+              }
+            }
+          }
+        ],
+        "title": "cardV3Response"
+      },
+      "listPlasticResponse": {
+        "type": "object",
+        "properties": {
+          "cardId": {
+            "type": "string",
+            "description": "CardId to which the plastic is connected"
+          },
+          "createdDate": {
+            "type": "string",
+            "format": "date",
+            "description": "Date when plastic was created"
+          },
+          "embossing": {
+            "$ref": "#/components/schemas/embossing"
+          },
+          "expiration": {
+            "$ref": "#/components/schemas/expiration"
+          },
+          "id": {
+            "$ref": "#/components/schemas/plasticId"
+          },
+          "productionDate": {
+            "type": "string",
+            "format": "date",
+            "description": "Date when plastic was embossed"
+          },
+          "productionType": {
+            "type": "string",
+            "enum": [
+              "ALL",
+              "NEW_PLASTIC",
+              "NEW_PIN",
+              "NEW_CVV",
+              "PIN",
+              "ADD_PARMS",
+              "CHIP_DATA"
+            ],
+            "description": "Type of production change"
+          },
+          "sequenceNumber": {
+            "type": "integer",
+            "description": "Sequence number starting from 1"
+          },
+          "status": {
+            "type": "string",
+            "description": "- ACTIVE - The plastic is active and may be used to perform transactions\n- CLOSED - Status of an old card after a new card is issued. Transactions with the old card may be performed until the new card is activated\n- DEFERRED\n- FROM_FILE - A batch application to reissue the card is being processed\n- INACTIVE - Plastic has been ordered and plastic is not in use right away\n- LOCKED - Plastic is locked and card cannot be used. Plastic goes from inactive to locked right away after card has been embossed\n- LOCKED_FOR_ONLINE\n- REJECTED - An error occurred during embossing process\n",
+            "enum": [
+              "ACTIVE",
+              "CLOSED",
+              "DEFERRED",
+              "FROM_FILE",
+              "INACTIVE",
+              "LOCKED",
+              "LOCKED_FOR_ONLINE",
+              "REJECTED"
+            ]
+          }
+        },
+        "title": "listPlasticResponse"
+      },
+      "emvScriptsStatusResponse": {
+        "type": "object",
+        "properties": {
+          "plasticId": {
+            "type": "string",
+            "description": "PlasticId to which the EMV script is connected"
+          },
+          "cardId": {
+            "type": "string",
+            "description": "CardId to which the EMV script is connected"
+          },
+          "emvScripts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/emvScript"
+            }
+          }
+        },
+        "title": "emvScriptsStatusResponse"
+      },
+      "emvScript": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "EMV script id"
+          },
+          "code": {
+            "type": "string",
+            "enum": [
+              "BLOCK_CARD",
+              "BLOCK_APPLICATION",
+              "UNBLOCK_APPLICATION",
+              "CHANGE_OFFLINE_PIN",
+              "UNBLOCK_OFFLINE_PIN",
+              "SET_OFFLINE_LIMIT",
+              "GENERIC_OFFLINE_RISK_UPDATE",
+              "MULTI_APPLICATION_CARD_UPDATE"
+            ]
+          },
+          "created": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2021-10-14T09:23:54",
+            "description": "Date when EMV script was created"
+          },
+          "updated": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2021-10-14T09:23:54",
+            "description": "Date when EMV script was updated"
+          },
+          "status": {
+            "type": "string",
+            "description": "* CLOSED - Script closed manually or with an API\n* REJECTED - Script was sent but not accepted by the card\n* PENDING - Script is generated but not sent to the card\n* SUSPENDED - Script was generated but not sent, because the max number of scripts reached it’s limit. Will be sent in the next authorisation\n* ACCEPTED - Script was sent and it was accepted by the card\n* SENT - Script was sent but confirmation of execution not yet received\n",
+            "enum": [
+              "CLOSED",
+              "REJECTED",
+              "PENDING",
+              "SUSPENDED",
+              "ACCEPTED",
+              "SENT"
+            ]
+          }
+        },
+        "title": "emvScript"
+      },
+      "regionAndEcommBlocking": {
+        "type": "object",
+        "description": "Card ecomm and geo-region blocking",
+        "properties": {
+          "ecomm": {
+            "type": "boolean",
+            "description": "Block e-comm usage"
+          },
+          "africa": {
+            "type": "boolean",
+            "description": "Block Africa region"
+          },
+          "asia": {
+            "type": "boolean",
+            "description": "Block Asia region"
+          },
+          "europe": {
+            "type": "boolean",
+            "description": "Block Europe region"
+          },
+          "home": {
+            "type": "boolean",
+            "description": "Block home region"
+          },
+          "northAmerica": {
+            "type": "boolean",
+            "description": "Block North-America region"
+          },
+          "oceania": {
+            "type": "boolean",
+            "description": "Block Oceania region"
+          },
+          "southAmerica": {
+            "type": "boolean",
+            "description": "Block South-America region"
+          }
+        },
+        "title": "regionAndEcommBlocking"
+      },
+      "baseCardResponse": {
+        "type": "object",
+        "properties": {
+          "customerId": {
+            "$ref": "#/components/schemas/customerId"
+          },
+          "id": {
+            "$ref": "#/components/schemas/id"
+          },
+          "template": {
+            "type": "string",
+            "description": "Template name for which the card is connected to"
+          }
+        }
+      },
+      "extendedBaseCardResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/baseCardResponse"
+          },
+          {
+            "properties": {
+              "accountId": {
+                "$ref": "#/components/schemas/accountId"
+              },
+              "cardRole": {
+                "$ref": "#/components/schemas/cardRole"
+              },
+              "status": {
+                "$ref": "#/components/schemas/cardStatus"
+              },
+              "maskedCardNumber": {
+                "$ref": "#/components/schemas/maskedCardNumber"
+              },
+              "statusDate": {
+                "$ref": "#/components/schemas/statusDate"
+              }
+            }
+          }
+        ]
+      },
+      "standardCardResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/extendedBaseCardResponse"
+          },
+          {
+            "properties": {
+              "embossing": {
+                "$ref": "#/components/schemas/embossing"
+              },
+              "productCode": {
+                "$ref": "#/components/schemas/productCode"
+              },
+              "expiration": {
+                "$ref": "#/components/schemas/expiration"
+              },
+              "regionAndEcommBlocking": {
+                "$ref": "#/components/schemas/regionAndEcommBlocking"
+              },
+              "reason": {
+                "description": "Reason for card status change",
+                "$ref": "#/components/schemas/reason"
+              },
+              "pinStatus": {
+                "$ref": "#/components/schemas/pinStatus"
+              },
+              "digitalLayoutCode": {
+                "$ref": "#/components/schemas/digitalLayoutCode"
+              },
+              "segment": {
+                "$ref": "#/components/schemas/segment"
+              },
+              "referenceNumber": {
+                "$ref": "#/components/schemas/referenceNumber"
+              },
+              "scheduledClosing": {
+                "$ref": "#/components/schemas/scheduledClosing"
+              },
+              "additionalValues": {
+                "$ref": "#/components/schemas/additionalValues"
+              },
+              "usageLimits": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/getUsageLimit"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "standardFleetCardResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/extendedBaseCardResponse"
+          },
+          {
+            "properties": {
+              "allowedPurchaseCategories": {
+                "$ref": "#/components/schemas/allowedPurchaseCategories"
+              },
+              "branchId": {
+                "type": "string",
+                "description": "Field that can be populated in order to group cards together",
+                "maxLength": 6
+              },
+              "branchName": {
+                "type": "string",
+                "description": "Field that can be populated in order to group cards together",
+                "maxLength": 64
+              },
+              "restrictionCode": {
+                "type": "string",
+                "description": "Purchase restriction code",
+                "maxLength": 12
+              },
+              "cardAddress": {
+                "description": "Address used to deliver card",
+                "$ref": "#/components/schemas/address"
+              },
+              "embossing": {
+                "$ref": "#/components/schemas/embossing"
+              },
+              "productCode": {
+                "$ref": "#/components/schemas/productCode"
+              },
+              "expiration": {
+                "$ref": "#/components/schemas/expiration"
+              },
+              "extraTerminalInformation": {
+                "$ref": "#/components/schemas/extraTerminalInformation"
+              },
+              "pinAddress": {
+                "description": "Address used to deliver pin",
+                "$ref": "#/components/schemas/address"
+              },
+              "pinStatus": {
+                "$ref": "#/components/schemas/pinStatus"
+              },
+              "digitalLayoutCode": {
+                "$ref": "#/components/schemas/digitalLayoutCode"
+              },
+              "scheduledClosing": {
+                "$ref": "#/components/schemas/scheduledClosing"
+              },
+              "additionalValues": {
+                "$ref": "#/components/schemas/additionalValues"
+              },
+              "referenceNumber": {
+                "$ref": "#/components/schemas/referenceNumber"
+              },
+              "reason": {
+                "description": "Reason for card status change",
+                "$ref": "#/components/schemas/reason"
+              },
+              "usageLimits": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/getUsageLimit"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "mcCardResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/standardCardResponse"
+          },
+          {
+            "properties": {
+              "cardAddress": {
+                "description": "Address used to deliver card",
+                "$ref": "#/components/schemas/address"
+              },
+              "cardDeliveryType": {
+                "$ref": "#/components/schemas/cardDeliveryType"
+              },
+              "pinAddress": {
+                "description": "Address used to deliver pin",
+                "$ref": "#/components/schemas/address"
+              },
+              "pinAttempts": {
+                "$ref": "#/components/schemas/pinAttempts"
+              },
+              "pinDeliveryType": {
+                "$ref": "#/components/schemas/pinDeliveryType"
+              }
+            }
+          }
+        ],
+        "title": "MC_CARD"
+      },
+      "mcVirtualCardResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/standardCardResponse"
+          }
+        ],
+        "title": "MC_VIRTUAL"
+      },
+      "visaCardResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/standardCardResponse"
+          },
+          {
+            "properties": {
+              "cardAddress": {
+                "description": "Address used to deliver card",
+                "$ref": "#/components/schemas/address"
+              },
+              "cardDeliveryType": {
+                "$ref": "#/components/schemas/cardDeliveryType"
+              },
+              "pinAddress": {
+                "description": "Address used to deliver pin",
+                "$ref": "#/components/schemas/address"
+              },
+              "pinAttempts": {
+                "$ref": "#/components/schemas/pinAttempts"
+              },
+              "pinDeliveryType": {
+                "$ref": "#/components/schemas/pinDeliveryType"
+              }
+            }
+          }
+        ],
+        "title": "VISA_CARD"
+      },
+      "visaVirtualCardResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/standardCardResponse"
+          }
+        ],
+        "title": "VISA_VIRTUAL"
+      },
+      "dCardCardResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/standardFleetCardResponse"
+          }
+        ],
+        "title": "D_CARD"
+      },
+      "fleetCardResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/standardFleetCardResponse"
+          }
+        ],
+        "title": "FLEET_CARD"
+      },
+      "multiApplicationCardResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/baseCardResponse"
+          },
+          {
+            "properties": {
+              "mainApplication": {
+                "$ref": "#/components/schemas/getApplication"
+              },
+              "applications": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/getApplication"
+                }
+              },
+              "cardAddress": {
+                "description": "Address used to deliver card",
+                "$ref": "#/components/schemas/address"
+              },
+              "cardDeliveryType": {
+                "$ref": "#/components/schemas/cardDeliveryType"
+              },
+              "embossing": {
+                "$ref": "#/components/schemas/embossing"
+              },
+              "expiration": {
+                "$ref": "#/components/schemas/expiration"
+              },
+              "segment": {
+                "$ref": "#/components/schemas/segment"
+              },
+              "pinAddress": {
+                "description": "Address used to deliver pin",
+                "$ref": "#/components/schemas/address"
+              },
+              "pinAttempts": {
+                "$ref": "#/components/schemas/pinAttempts"
+              },
+              "pinDeliveryType": {
+                "$ref": "#/components/schemas/pinDeliveryType"
+              },
+              "pinStatus": {
+                "$ref": "#/components/schemas/pinStatus"
+              }
+            }
+          }
+        ],
+        "title": "MULTI_APPLICATION_CARD"
+      },
+      "listCardResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/extendedBaseCardResponse"
+          },
+          {
+            "properties": {
+              "embossing": {
+                "$ref": "#/components/schemas/listEmbossing"
+              },
+              "productCode": {
+                "$ref": "#/components/schemas/productCode"
+              }
+            }
+          }
+        ],
+        "title": "listCardResponse"
+      },
+      "mcCardListResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/listCardResponse"
+          }
+        ],
+        "title": "mcCardListResponse"
+      },
+      "mcVirtualListResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/listCardResponse"
+          }
+        ],
+        "title": "mcVirtualListResponse"
+      },
+      "debitMcCardListResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/listCardResponse"
+          }
+        ],
+        "title": "debitMcCardListResponse"
+      },
+      "debitMcVirtualListResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/listCardResponse"
+          }
+        ],
+        "title": "debitMcVirtualListResponse"
+      },
+      "visaCardListResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/listCardResponse"
+          }
+        ],
+        "title": "visaCardListResponse"
+      },
+      "visaVirtualListResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/listCardResponse"
+          }
+        ],
+        "title": "visaVirtualListResponse"
+      },
+      "debitVisaListResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/listCardResponse"
+          }
+        ],
+        "title": "debitVisaListResponse"
+      },
+      "debitVisaVirtualListResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/listCardResponse"
+          }
+        ],
+        "title": "debitVisaVirtualListResponse"
+      },
+      "dCardListResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/listCardResponse"
+          }
+        ],
+        "title": "dCardListResponse"
+      },
+      "fleetCardListResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/listCardResponse"
+          }
+        ],
+        "title": "fleetCardListResponse"
+      },
+      "patchBaseResourceBody": {
+        "type": "object",
+        "properties": {
+          "accountId": {
+            "$ref": "#/components/schemas/accountId"
+          },
+          "customerId": {
+            "$ref": "#/components/schemas/customerId"
+          },
+          "embossing": {
+            "$ref": "#/components/schemas/embossing"
+          },
+          "reason": {
+            "$ref": "#/components/schemas/reason"
+          },
+          "segment": {
+            "$ref": "#/components/schemas/segment"
+          },
+          "status": {
+            "$ref": "#/components/schemas/cardStatusPatch"
+          },
+          "usageLimits": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/usageLimit"
+            },
+            "description": "Usage limits\n\nUse cases:\n\n1. No spend or usage limits\n\n  If spend and usage should not be limited, then the default configuration is applied. By default, both the singleAmount and sumAmount are set to 0, indicating that no spend limit is set. The count is set to 9999999 indicating that a high (almost unlimited) number of transactions are allowed without any usage limit set.\n\n      usageLimits.values.singleAmount = 0\n      usageLimits.values.sumAmount = 0\n\n      usageLimits.values.count = 9999999\n\n2. Spend limit per transaction\n\n  If the maximum spend should be limited for the defined transaction type, set the singleAmount to the desired maximum. If only the singleAmount is set,  then both the singleAmount and the count will default to 0 indicating that there is no cumulative spend limit and the number of allowed transactions are not limited.\n\n  Example: Maximum allowed spend per transaction is 1000\n\n      usageLimits.values.singleAmount = 1000\n      usageLimits.values.sumAmount = 0\n\n      usageLimits.values.count = 0\n\n3. Cumulative spend limit \n\n  If the amount spent under a time period should be limited, set the sumAmount to the desired maximum. If only the sumAmount is set, then both the singleAmount and the count will default to 0 indicating that there is no limit on the number of allowed transactions or on single amounts.\n\n  Example: Maximum allowed spend under a certain period of time is 1200 \n\n      usageLimits.values.singleAmount = 0\n      usageLimits.values.sumAmount = 1200\n\n      usageLimits.values.count = 0\n\n4. Usage limit\n\n  If the number of allowed transaction under a time period should be limited, set the count to the desired maximum. If only the count is set, then both the singleAmount and the sumAmount will default to 0 indicating that there is no limit on the allowed amounts.\n\n  Example: Maximum number of allowed transactions under a certain period of time is 5\n\n      usageLimits.values.singleAmount = 0\n      usageLimits.values.sumAmount = 0\n\n      usageLimits.values.count = 5\n\n5. Combinations of usage and spend limits\n\n  If multiple limits should apply, set each applicable limit to the desired value. Any unset limiter will default back to 0. \n\n  Example: Limit the allowed number of transactions to 5 and the allowed amount to 1000 under a certain period of time \n\n      usageLimits.values.singleAmount = 0\n      usageLimits.values.sumAmount = 1000\n\n      usageLimits.values.count = 5\n\n6. Restrict Usage\n\n  To disable a specific use case for the card—such as ATM transactions—set all corresponding values for that usage type to 0.\n\n  Example: Disable ATM usage by setting all limits to 0\n\n      usageLimits.values.singleAmount = 0\n      usageLimits.values.sumAmount = 0\n\n      usageLimits.values.count = 0\n"
+          },
+          "pinStatus": {
+            "$ref": "#/components/schemas/pinStatus"
+          },
+          "digitalLayoutCode": {
+            "$ref": "#/components/schemas/digitalLayoutCode"
+          },
+          "scheduledClosing": {
+            "$ref": "#/components/schemas/scheduledClosingUpdate"
+          },
+          "additionalValues": {
+            "$ref": "#/components/schemas/additionalValues"
+          }
+        },
+        "title": "patchBaseResourceBody"
+      },
+      "patchStandardResourceBody": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/patchBaseResourceBody"
+          },
+          {
+            "properties": {
+              "cardAddress": {
+                "description": "Address used to deliver card. Full address object is expected to be set when updating.",
+                "$ref": "#/components/schemas/updateAddress"
+              },
+              "cardDeliveryType": {
+                "$ref": "#/components/schemas/cardDeliveryType"
+              },
+              "pinAddress": {
+                "description": "Address used to deliver pin. Full address object is expected to be set when updating.",
+                "$ref": "#/components/schemas/updateAddress"
+              },
+              "pinDeliveryType": {
+                "$ref": "#/components/schemas/pinDeliveryType"
+              },
+              "regionAndEcommBlocking": {
+                "$ref": "#/components/schemas/regionAndEcommBlocking"
+              }
+            }
+          }
+        ],
+        "title": "patchStandardResourceBody"
+      },
+      "patchMultiApplicationResourceBody": {
+        "properties": {
+          "cardAddress": {
+            "description": "Address used to deliver card",
+            "$ref": "#/components/schemas/updateAddress"
+          },
+          "cardDeliveryType": {
+            "$ref": "#/components/schemas/cardDeliveryType"
+          },
+          "embossing": {
+            "$ref": "#/components/schemas/embossing"
+          },
+          "segment": {
+            "$ref": "#/components/schemas/segment"
+          },
+          "pinAddress": {
+            "description": "Address used to deliver pin",
+            "$ref": "#/components/schemas/updateAddress"
+          },
+          "pinDeliveryType": {
+            "$ref": "#/components/schemas/pinDeliveryType"
+          },
+          "pinStatus": {
+            "$ref": "#/components/schemas/pinStatus"
+          }
+        },
+        "title": "patchMultiApplicationResourceBody"
+      },
+      "patchApplicationResourceBody": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/patchApplication"
+          }
+        ],
+        "title": "patchApplicationResourceBody"
+      },
+      "patchVirtualResourceBody": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/patchBaseResourceBody"
+          },
+          {
+            "properties": {
+              "regionAndEcommBlocking": {
+                "$ref": "#/components/schemas/regionAndEcommBlocking"
+              }
+            }
+          }
+        ],
+        "title": "patchVirtualResourceBody"
+      },
+      "getCardByCardNumberRequestBody": {
+        "type": "object",
+        "properties": {
+          "encryptedData": {
+            "type": "string",
+            "description": "JWE encrypted card number, see details above"
+          }
+        },
+        "title": "getCardByCardNumberRequestBody"
+      },
+      "patchFleetResourceBody": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/patchBaseResourceBody"
+          },
+          {
+            "properties": {
+              "allowedPurchaseCategories": {
+                "$ref": "#/components/schemas/allowedPurchaseCategories"
+              },
+              "branchId": {
+                "type": "string",
+                "description": "Field that can be populated in order to group cards together",
+                "maxLength": 6
+              },
+              "branchName": {
+                "type": "string",
+                "description": "Field that can be populated in order to group cards together",
+                "maxLength": 64
+              },
+              "cardAddress": {
+                "description": "Address used to deliver card. Full address object is expected to be set when updating.",
+                "$ref": "#/components/schemas/updateAddress"
+              },
+              "extraTerminalInformation": {
+                "$ref": "#/components/schemas/extraTerminalInformation"
+              },
+              "pinAddress": {
+                "description": "Address used to deliver pin. Full address object is expected to be set when updating.",
+                "$ref": "#/components/schemas/updateAddress"
+              }
+            },
+            "description": "Usage limits"
+          }
+        ],
+        "title": "patchFleetResourceBody"
+      },
+      "accountId": {
+        "type": "string",
+        "description": "The account id card is linked to",
+        "example": "1234567890"
+      },
+      "allowedPurchaseCategories": {
+        "type": "string",
+        "enum": [
+          "UNRESTRICTED",
+          "ALL_FUELS_INCL_VEHICLE_GOODS_AND_SERVICES",
+          "ALL_FUELS",
+          "RESTRICTED_FUELS",
+          "NO_PRODUCTS"
+        ],
+        "title": "allowedPurchaseCategories"
+      },
+      "customerId": {
+        "type": "string",
+        "description": "The customer id card is linked to",
+        "example": "1234567890"
+      },
+      "id": {
+        "type": "string",
+        "description": "Unique card id for given card",
+        "example": "1234567890"
+      },
+      "plasticId": {
+        "type": "string",
+        "description": "Unique plastic id for plastic",
+        "example": "1234567890"
+      },
+      "extraTerminalInformation": {
+        "type": "string",
+        "enum": [
+          "NONE",
+          "VEHICLE_ID_AND_ODOMETER",
+          "VEHICLE_ID",
+          "ODOMETER"
+        ],
+        "title": "extraTerminalInformation"
+      },
+      "fleetTemplate": {
+        "type": "string",
+        "enum": [
+          "D_CARD",
+          "FLEET_CARD",
+          "FLEET_CARD2",
+          "FLEET_CARD3",
+          "FLEET_CARD4"
+        ]
+      },
+      "pinAttempts": {
+        "type": "object",
+        "description": "These values refer to online PIN, not offline PIN.",
+        "properties": {
+          "counter": {
+            "type": "integer",
+            "description": "Current number of online PIN attempts on card"
+          },
+          "max": {
+            "type": "integer",
+            "description": "Max allowed online PIN attempts on card"
+          }
+        },
+        "title": "pinAttempts"
+      },
+      "cardDeliveryType": {
+        "type": "string",
+        "description": "Valid card delivery types in API",
+        "enum": [
+          "CUSTOM_1",
+          "CUSTOM_2",
+          "CUSTOM_3",
+          "CUSTOM_4",
+          "CUSTOM_5",
+          "MAIL",
+          "COURIER"
+        ],
+        "title": "cardDeliveryType"
+      },
+      "maskedCardNumber": {
+        "type": "string",
+        "description": "Card number, masked in order to protect sensitive data",
+        "example": "123456______4285"
+      },
+      "pinDeliveryType": {
+        "type": "string",
+        "description": "Valid pin delivery types in API",
+        "enum": [
+          "CUSTOM_1",
+          "CUSTOM_2",
+          "CUSTOM_3",
+          "CUSTOM_4",
+          "CUSTOM_5",
+          "MAIL",
+          "COURIER",
+          "EPIN"
+        ],
+        "title": "pinDeliveryType"
+      },
+      "statusDate": {
+        "type": "string",
+        "format": "date-time",
+        "description": "Last updated on",
+        "example": "2020-05-12T13:18:05"
+      },
+      "baseApplication": {
+        "type": "object",
+        "properties": {
+          "applicationName": {
+            "type": "string",
+            "description": "Name of the application displayed on the POS terminal in text",
+            "example": "APPLICATION",
+            "pattern": "^[A-Za-z ]*$",
+            "maxLength": 16
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "Allows to define if an application (PAN) is active on the chip. Only active applications are displayed\n"
+          },
+          "additionalValues": {
+            "$ref": "#/components/schemas/additionalValues"
+          },
+          "printed": {
+            "type": "boolean",
+            "description": "To indicate if this PAN is printed on the physical card"
+          },
+          "contactPriorityLevel": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 255,
+            "description": "Priority level of the application (PAN) on a POS terminal (Lowest is the first application listed)\n"
+          },
+          "contactlessPriorityLevel": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 255,
+            "description": "Priority level of the contactless application (PAN) (not visible on terminal). Application with the lowest  value will be used for contactless purchases\n"
+          },
+          "digitalLayoutCode": {
+            "$ref": "#/components/schemas/digitalLayoutCode"
+          }
+        }
+      },
+      "createApplication": {
+        "type": "object",
+        "required": [
+          "accountId",
+          "productCode",
+          "applicationName",
+          "enabled",
+          "contactPriorityLevel",
+          "contactlessPriorityLevel"
+        ],
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/baseApplication"
+          },
+          {
+            "properties": {
+              "accountId": {
+                "$ref": "#/components/schemas/accountId"
+              },
+              "productCode": {
+                "$ref": "#/components/schemas/productCode"
+              }
+            }
+          }
+        ],
+        "title": "createApplication"
+      },
+      "getApplication": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/baseApplication"
+          },
+          {
+            "properties": {
+              "accountId": {
+                "$ref": "#/components/schemas/accountId"
+              },
+              "id": {
+                "$ref": "#/components/schemas/id"
+              },
+              "maskedCardNumber": {
+                "$ref": "#/components/schemas/maskedCardNumber"
+              },
+              "productCode": {
+                "$ref": "#/components/schemas/productCode"
+              },
+              "referenceNumber": {
+                "$ref": "#/components/schemas/referenceNumber"
+              },
+              "regionAndEcommBlocking": {
+                "$ref": "#/components/schemas/regionAndEcommBlocking"
+              },
+              "status": {
+                "$ref": "#/components/schemas/cardStatus"
+              },
+              "statusDate": {
+                "$ref": "#/components/schemas/statusDate"
+              },
+              "usageLimits": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/getUsageLimit"
+                },
+                "description": "Usage limits"
+              }
+            }
+          }
+        ]
+      },
+      "patchApplication": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/baseApplication"
+          },
+          {
+            "properties": {
+              "regionAndEcommBlocking": {
+                "$ref": "#/components/schemas/regionAndEcommBlocking"
+              },
+              "status": {
+                "$ref": "#/components/schemas/cardStatus"
+              },
+              "usageLimits": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/usageLimit"
+                },
+                "description": "Usage limits"
+              }
+            }
+          }
+        ]
+      },
+      "CardDataControlTokenResponseBody": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "description": "The control token."
+          },
+          "cardDataUrl": {
+            "type": "string",
+            "description": "The URL to call on mobile devices for accessing the card's data."
+          },
+          "cardDataFrameUrl": {
+            "type": "string",
+            "description": "The URL to open in iframe to access the card's data."
+          }
+        },
+        "required": [
+          "token"
+        ],
+        "title": "CardDataControlTokenResponseBody"
+      },
+      "multipleResourceResponse": {
+        "type": "object",
+        "required": [
+          "mainId",
+          "applications"
+        ],
+        "properties": {
+          "description": {
+            "type": "string",
+            "description": "Short description of the result of the action"
+          },
+          "mainId": {
+            "type": "string",
+            "description": "Will contain the ID of the resource that has been created or updated"
+          },
+          "applications": {
+            "type": "array",
+            "description": "Will contain the IDs of the resources that have been created or updated",
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "accountId"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "accountId": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "title": "multipleResourceResponse"
+      },
+      "keyValuePair": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 8,
+            "pattern": "^[a-zA-Z0-9\\-\\_ ]*$"
+          },
+          "value": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 50,
+            "pattern": "^[a-zA-Z0-9|\\-_ +.éàèùçâêîôûëïü']*$"
+          }
+        }
+      },
+      "additionalValues": {
+        "type": "array",
+        "maxItems": 10,
+        "description": "The additionalValues array is used to store information in the form of key-value pairs. \nEnfuce does not perform any validation on these key-value pairs beyond ensuring they adhere to the character limit constraints. \nThe primary purpose of these key-value pairs is to store data without further processing.\nIn newer versions of the card personalization files, these key-value pairs are included in the file. \nHowever, this inclusion is version-dependent. We recommend consulting the specific version details of your card personalization files \nto confirm whether these values will be added to the card personalization file in your case.\n",
+        "items": {
+          "$ref": "#/components/schemas/keyValuePair"
+        }
+      },
+      "digitalLayoutCode": {
+        "type": "string",
+        "description": "Id used for digital wallet artwork and other related assets. Use of this need to be agreed with Enfuce separately\n",
+        "maxLength": 32,
+        "pattern": "^[a-zA-Z0-9]+$",
+        "example": "abc123abc"
+      },
+      "productCode": {
+        "type": "string",
+        "description": "This field is used when the institution has multiple card products setup. The productCode is used to determine the specific card product. Use of this field as well as the values of the field, is dependent on institution setup and should be aligned with Enfuce prior to use.\n",
+        "pattern": "^[A-Z][A-Z_0-9]{1,64}$",
+        "example": "MC_CARD_2, VISA_CARD1, VISA_VIRTUAL_3, MC_VIRTUAL_2, VISA_CARD"
+      },
+      "country": {
+        "type": "string",
+        "description": "A valid ISO 3166-1 alpha-3 country code, except for QZZ (UNMIK in Kosovo) and ROM for Romania.",
+        "pattern": "[A-Z]{3}",
+        "example": "FIN"
+      },
+      "address": {
+        "type": "object",
+        "required": [
+          "address1",
+          "city",
+          "country",
+          "zipCode"
+        ],
+        "properties": {
+          "address1": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255,
+            "example": "Kings street 12"
+          },
+          "address2": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "address3": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "address4": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "city": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255,
+            "example": "Mariehamn"
+          },
+          "country": {
+            "$ref": "#/components/schemas/country"
+          },
+          "region": {
+            "type": "string",
+            "maxLength": 32,
+            "example": "Åland Islands"
+          },
+          "zipCode": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 32,
+            "example": 22100
+          }
+        },
+        "title": "address"
+      },
+      "embossing": {
+        "type": "object",
+        "description": "Default set of allowed characters for fields embossed onto the card:\n\nA-Z, a-z, Áá, Ää, Åå, Ææ, Éé, Íí, Ðð, Óó, Öö, Øø, Úú, Üü, Ýý, Þþ, 0-9, symbols -/.,&+' and space.  \n\nFor printed cards allowed characters are: (including the above)\n\nÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖØÙÚÛÜÝÞßàáâãäåæçèéêëìíîïðñòóôõöøùúûüý\nþÿĀāĂăĄąĆćĈĉĊċČčĎďĐđĒēĔĕĖėĘęĚěĜĝĞğĠġĢģĤĥĦħĨĩĪīĬĭĮįİıĲĳĴĵĶķĸĹ\nĺĻļĽľĿŀŁłŃńŅņŇňŉŊŋŌōŎŏŐőŒœŔŕŖŗŘřŚśŜŝŞşŠšŢţŤťŦŧŨũŪūŬŭŮůŰűŲųŴŵ\nŶŷŸŹźŻżŽžſǪǫȘșȚțȪȫȮȯȲȳḐḑṢṣẞỌọ\n\nPrinted or others characters sets must be agreed in advance.\n",
+        "properties": {
+          "additionalField1": {
+            "type": "string",
+            "description": "Field value is forwarded to embossing house in order to be used as additional embossing lines. In order to use this field selected embossing house must in advance agree where this is put.\n",
+            "maxLength": 32
+          },
+          "additionalField2": {
+            "type": "string",
+            "description": "Field value is forwarded to embossing house in order to be used as additional embossing lines. In order to use this field selected embossing house must in advance agree where this is put.\n",
+            "maxLength": 32
+          },
+          "additionalField3": {
+            "type": "string",
+            "description": "Field value is forwarded to embossing house in order to be used as additional embossing lines. In order to use this field selected embossing house must in advance agree where this is put.\n",
+            "maxLength": 32
+          },
+          "additionalField4": {
+            "type": "string",
+            "description": "Field value is forwarded to embossing house in order to be used as additional embossing lines. In order to use this field selected embossing house must in advance agree where this is put.\n",
+            "maxLength": 32
+          },
+          "additionalField5": {
+            "type": "string",
+            "description": "Field value is forwarded to embossing house in order to be used as additional embossing lines. In order to use this field selected embossing house must in advance agree where this is put.\n",
+            "maxLength": 32
+          },
+          "companyName": {
+            "type": "string",
+            "description": "",
+            "maxLength": 26,
+            "example": "Enfuce Financial Services"
+          },
+          "externalLayoutCode": {
+            "type": "string",
+            "description": "Code forwarded to embossing house in order to select which plastic layout to use. In order to use this field selected embossing house must in advance agree on name for each layout.\n",
+            "maxLength": 32,
+            "example": "BlueCard"
+          },
+          "firstName": {
+            "type": "string",
+            "description": "The length of firstName should not exceed 26 characters length. A combined length of firstName and lastName  should not exceed 26 characters length.\n",
+            "maxLength": 26,
+            "example": "Monica"
+          },
+          "lastName": {
+            "type": "string",
+            "description": "The length of lastName should not exceed 26 characters length. A combined length of firstName and lastName  should not exceed 26 characters length.\n",
+            "maxLength": 26,
+            "example": "Liikamaa"
+          },
+          "manufacturer": {
+            "type": "string",
+            "description": "Name of manufacturer for the card. This has to be agreed in advance with Enfuce in order to support  multiple embossing houses.\n",
+            "pattern": "[A-Z0-9_\\-]{1,32}",
+            "example": "FACTORY_X"
+          },
+          "physical": {
+            "type": "boolean",
+            "description": "This tag will indicate will there be a physical representation of the card.  If true, the card will be placed for card personalisation and end user will receive a physical plastic.  If false, the card will not be placed for card personalisation and end user will not receive a physical plastic.\n",
+            "example": true
+          }
+        }
+      },
+      "expiration": {
+        "type": "object",
+        "properties": {
+          "year": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Expiration year in format YYYY",
+            "example": 2019
+          },
+          "month": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Expiration month in format MM",
+            "example": 1
+          }
+        },
+        "title": "expiration"
+      },
+      "segment": {
+        "type": "string",
+        "description": "Field enables to group an entity into a segment. This field will be exported but no logic is applied to this in Enfuce API",
+        "enum": [
+          "SEGMENT_A",
+          "SEGMENT_B",
+          "SEGMENT_C",
+          "SEGMENT_D",
+          "SEGMENT_E",
+          "SEGMENT_F"
+        ],
+        "title": "segment"
+      },
+      "pinStatus": {
+        "type": "string",
+        "description": "This flag will indicate current status for PIN generation. If not specified system will automatically assign D\nas default and make sure a PIN is calculated during next embossing process. If set to W, then card will be excluded\nfrom embossing process until a PIN has been set and status has been updated to S. It is also possible to revert\nto D, in order for system to generate PIN. Note that system will update to status S automatically when a PIN is\nset successfully.\n### New card\nIn order for a new card to not get a system generated PIN then pinStatus flag must be set to W when created,\nthis will then halt the embossing process for given card until a PIN has been set.\n### Reissue card\nWhen reissuing a card it is possible to set pinStatus to W in order to hold embossing process for given card\nuntil a PIN has been set. Update pinStatus is done on same card id that is reissued.\n### Replace card\nWhen replacing a card it is possible to set pinStatus to W in order to hold embossing process for given card\nuntil a PIN has been set. Update pinStatus is done on new card id that is returned when replacing.\n- D - default and a random PIN will be generated\n- W - waiting for PIN to be manually set\n- S - PIN has been set successfully\n",
+        "enum": [
+          "D",
+          "W",
+          "S"
+        ]
+      },
+      "errorResponse": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "An error code indicating what kind of error. I.e. HTTP error code"
+          },
+          "message": {
+            "type": "string",
+            "description": "Error message in human-readable format"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Unique error identifier"
+          },
+          "errorCode": {
+            "type": "string",
+            "description": "Enfuce code for a specific error type"
+          },
+          "errorType": {
+            "type": "string",
+            "description": "Error type",
+            "enum": [
+              "STATIC_VALIDATION_ERROR",
+              "DYNAMIC_VALIDATION_ERROR",
+              "INTEGRATION_ERROR",
+              "SECURITY_ERROR",
+              "UNEXPECTED_ERROR"
+            ]
+          },
+          "errorReason": {
+            "type": "string",
+            "description": "Free-form text explaining the error reason"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Datetime when error occurred"
+          }
+        }
+      },
+      "updateAddress": {
+        "type": "object",
+        "properties": {
+          "address1": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "address2": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "address3": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "address4": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "city": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "country": {
+            "$ref": "#/components/schemas/country"
+          },
+          "region": {
+            "type": "string",
+            "maxLength": 32
+          },
+          "zipCode": {
+            "type": "string",
+            "maxLength": 32
+          }
+        },
+        "title": "updateAddress"
+      },
+      "resourceResponse": {
+        "type": "object",
+        "properties": {
+          "description": {
+            "type": "string",
+            "description": "Short description of the result of the action"
+          },
+          "id": {
+            "type": "string",
+            "description": "Will contain the ID of the resource that has been created or updated"
+          }
+        },
+        "title": "resourceResponse"
+      },
+      "referenceNumber": {
+        "type": "string",
+        "description": "Unique card identifier for given card\n",
+        "maxLength": 16,
+        "minLength": 1,
+        "pattern": "^[1-9][0-9]{1,15}$",
+        "example": "123456789123456"
+      },
+      "cardStatus": {
+        "type": "string",
+        "description": "- CARD_OK - Card is open and in normal status. Card has to be in this status in order for it to be renewed - CARD_BLOCKED - Temporary block on the card that will prevent approval of authorisations. Can be used instead of account level temporary block if target is to block only a specific card - SUSPECTED_FRAUD - Temporary block on the card that will prevent approval of authorisations. Functionality the same as for \"Card blocked\", the different code allows to differentiate between the blocks - CARD_CLOSED_DUE_TO_FRAUD - Used to close a card due to known fraud - CARD_NO_RENEWAL - Status set to prevent following card renewal. Does not affect card functionality in any way, only renewal - CARD_LOST - Used to close a card because it is lost - CARD_STOLEN - Used to close a card because it is stolen - CARD_CLOSED - Used to close card by request from customer or bank, reason for closure is set with status update reason. Allows still clearing transaction posting - CARD_EXPIRED - Final card closure status, that blocks also clearing transaction posting\n",
+        "enum": [
+          "CARD_OK",
+          "CARD_BLOCKED",
+          "SUSPECTED_FRAUD",
+          "CARD_CLOSED_DUE_TO_FRAUD",
+          "CARD_NO_RENEWAL",
+          "CARD_LOST",
+          "CARD_STOLEN",
+          "CARD_CLOSED",
+          "CARD_EXPIRED"
+        ],
+        "title": "cardStatus"
+      },
+      "baseUsageLimit": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "enum": [
+              "24H",
+              "DAILY",
+              "MONTHLY",
+              "WEEKLY",
+              "ANNUAL_YEARLY",
+              "ROLLING_YEARLY"
+            ],
+            "description": "Usage Limiter Time Periods\nAvailable usage limiters include:\n  * __24H__ - A sliding window limiter covering the last 24 hours.\n  * __WEEKLY__ - Limits usage for the current week, starting on Monday.\n  * __MONTHLY__ - Limits usage for the current month, starting on the 1st.\n\n\n  __Note:__ The following usage limiters are not part of the standard usage limiter setup. The use of these fields and their values depends on the institution's configuration and must be coordinated with Enfuce before use.\n  * __DAILY__ - Limits usage for the current day, starting at 00:00.\n  * __ANNUAL_YEARLY__ - Limits usage for the current year, starting on 1st January.\n  * __ROLLING_YEARLY__ - A sliding window limiter covering the year until now.\n\n(DAILY, WEEKLY, MONTHLY and ANNUAL_YEARLY are reset at midnight UTC)\n"
+          }
+        },
+        "title": "baseUsageLimit"
+      },
+      "limitValues": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "enum": [
+              "ATM",
+              "RETAIL",
+              "ALL"
+            ],
+            "description": "Note that all values must be present when set. Usage limiter values are:\n  * __ATM__ - ATM max withdrawal limit\n  * __RETAIL__ - Retail max purchase limit\n  * __ALL__ - All usage max limit\n"
+          },
+          "reset": {
+            "type": "boolean",
+            "description": "If set to true this specific usage limit will be reset to product default and any other values sent in to the request will be ignored.\n\n  Example: If __usageLimits.values.reset__ = true then all values below will be ignored and the default configuration will apply.\n\n    usageLimits.values.singleAmount = 1000\n    usageLimits.values.sumAmount = 1200\n\n    usageLimits.values.count = 5\n",
+            "example": true
+          },
+          "singleAmount": {
+            "type": "number",
+            "description": "The max allowed amount of a single transaction.\n\n  Example: Maximum allowed spend per transaction is 1000\n\n    usageLimits.values.singleAmount = 1000\n    usageLimits.values.sumAmount = 0\n\n    usageLimits.values.count = 0\n",
+            "example": 1000
+          },
+          "count": {
+            "type": "integer",
+            "description": "The max number of transactions allowed under a time period.\n\n  Example: Maximum number of allowed transactions under a certain period of time is 5\n\n    usageLimits.values.singleAmount = 0\n    usageLimits.values.sumAmount = 0\n\n    usageLimits.values.count = 5\n",
+            "example": 5
+          },
+          "sumAmount": {
+            "type": "number",
+            "description": "The max allowed amount under a time period.\n\n  Example: Maximum allowed spend under a certain period of time is 1200.\n\n    usageLimits.values.singleAmount = 0\n    usageLimits.values.sumAmount = 1200\n\n    usageLimits.values.count = 0\n",
+            "example": 1200
+          }
+        },
+        "title": "limitValue"
+      },
+      "getLimitValues": {
+        "type": "object",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/limitValues"
+          },
+          {
+            "properties": {
+              "availableAmount": {
+                "type": "number",
+                "description": "Available amount for specific usage limit. Note this is not present if sumAmount is not set.",
+                "example": 1200
+              },
+              "availableCount": {
+                "type": "integer",
+                "description": "Available count for specific usage limit. Note this is not present if count is not set.",
+                "example": 1200
+              },
+              "usedAmount": {
+                "type": "number",
+                "description": "Used amount for specific usage limit",
+                "example": 1200
+              },
+              "usedCount": {
+                "type": "integer",
+                "description": "Used count for specific usage limit",
+                "example": 1200
+              }
+            }
+          }
+        ],
+        "title": "getLimitValues"
+      },
+      "getUsageLimit": {
+        "type": "object",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/baseUsageLimit"
+          },
+          {
+            "properties": {
+              "values": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/getLimitValues"
+                }
+              }
+            }
+          }
+        ],
+        "title": "getUsageLimit"
+      },
+      "usageLimit": {
+        "type": "object",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/baseUsageLimit"
+          },
+          {
+            "properties": {
+              "values": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/limitValues"
+                }
+              }
+            }
+          }
+        ],
+        "title": "usageLimit"
+      },
+      "cardRole": {
+        "type": "string",
+        "description": "A role needs to be provided for the connection to the account. Role is one way to categorize between  primary and supplementary card holders. Role MAIN will always create a card to have same account holder  and card holder. For a supplementary card there is a possibility to differ between account and card holder.\n",
+        "enum": [
+          "MAIN",
+          "SUPPLEMENTARY"
+        ]
+      },
+      "scheduledClosingType": {
+        "type": "string",
+        "description": "This field is used when there is a need to setup the scheduled closing of the card. Use of this field should be aligned with Enfuce prior to use.\n",
+        "enum": [
+          "TIMEBASED"
+        ]
+      },
+      "scheduledClosingTime": {
+        "type": "string",
+        "format": "date-time",
+        "description": "This field is used to determine the date for closing of the card. Card will be closed on that date which is selected. \nThe time specified in the closing time must adhere to the UTC time zone. Use of this field should be aligned with Enfuce prior to use.\n",
+        "example": "2099-12-31T03:00:00.000Z"
+      },
+      "scheduledClosing": {
+        "type": "object",
+        "title": "scheduledClosing",
+        "description": "Scheduled closing of the card. Use of this object should be aligned with Enfuce prior to use.",
+        "properties": {
+          "type": {
+            "$ref": "#/components/schemas/scheduledClosingType"
+          },
+          "time": {
+            "$ref": "#/components/schemas/scheduledClosingTime"
+          }
+        }
+      },
+      "reason": {
+        "type": "string",
+        "description": "Reason for contract status change",
+        "maxLength": 32,
+        "title": "reason"
+      },
+      "listEmbossing": {
+        "type": "object",
+        "properties": {
+          "companyName": {
+            "type": "string",
+            "description": "Embossing company name"
+          },
+          "firstName": {
+            "type": "string",
+            "description": "Embossing first name"
+          },
+          "lastName": {
+            "type": "string",
+            "description": "Embossing last name"
+          }
+        }
+      },
+      "encryptCardPaymentInfoRequestBody": {
+        "type": "object",
+        "properties": {
+          "encryptionKey": {
+            "type": "string",
+            "description": "Public key used to encrypt the fields in the result."
+          },
+          "encryptionMethod": {
+            "type": "string",
+            "enum": [
+              "RSA_ECB_OAEP_SHA256_MGF1_2048"
+            ],
+            "description": "In this field the encryption method is selected. This is to prepare for future use since only one method is supported.\n  * __RSA_ECB_OAEP_SHA256_MGF1_2048__ - RSA/ECB/OAEPWithSHA-256AndMGF1Padding. Public key length 2048.\n"
+          },
+          "fields": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "fullCardNumber",
+                "expirationDate",
+                "cvv2"
+              ]
+            },
+            "description": "In this field you can list which fields the service should encrypt and return. If a field is not listed, it will be left out from the response. Note that only fullCardNumber and cvv2 will be encrypted.\n  * __fullCardNumber__ - PAN number (card number) for the card\n  * __expirationDate__ - The expiration date of the card, in format MM/YY\n  * __cvv2__ - The CVV2 (if Visa), or CVC2 (if Mastercard) value\n"
+          }
+        },
+        "required": [
+          "encryptionKey"
+        ],
+        "title": "encryptCardPaymentInfoRequestBody"
+      },
+      "encryptCardPaymentInfoResponseBody": {
+        "type": "object",
+        "properties": {
+          "fullCardNumber": {
+            "type": "string",
+            "description": "The enrypted full card number (PAN). Base64 encoded"
+          },
+          "expirationDate": {
+            "type": "string",
+            "description": "The expiration date of the card, in format MMYY"
+          },
+          "cvv2": {
+            "type": "string",
+            "description": "The encrypted CVV2 (if Visa), or CVC2 (if Mastercard) value. Base64 encoded"
+          }
+        },
+        "title": "encryptCardPaymentInfoResponseBody"
+      },
+      "cardStatusPatch": {
+        "type": "string",
+        "enum": [
+          "CARD_OK",
+          "CARD_BLOCKED",
+          "SUSPECTED_FRAUD",
+          "CARD_CLOSED_DUE_TO_FRAUD",
+          "CARD_NO_RENEWAL",
+          "CARD_LOST",
+          "CARD_STOLEN",
+          "CARD_CLOSED"
+        ],
+        "title": "cardStatusPatch"
+      },
+      "scheduledClosingUpdate": {
+        "type": "object",
+        "title": "scheduledClosing",
+        "description": "Scheduled closing of the card. Use of this object should be aligned with Enfuce prior to use.",
+        "properties": {
+          "time": {
+            "$ref": "#/components/schemas/scheduledClosingTime"
+          }
+        }
+      }
+    },
+    "responses": {
+      "error401": {
+        "description": "Unauthorized",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/errorResponse"
+            }
+          }
+        }
+      },
+      "error403": {
+        "description": "Forbidden",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/errorResponse"
+            }
+          }
+        }
+      },
+      "error500": {
+        "description": "Internal server error",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/errorResponse"
+            }
+          }
+        }
+      }
+    }
+  },
+  "x-tagGroups": [
+    {
+      "name": "Application",
+      "tags": [
+        "Get application",
+        "Update application"
+      ]
+    },
+    {
+      "name": "Card",
+      "tags": [
+        "Create card",
+        "Get card",
+        "Update card",
+        "Get EMV scripts"
+      ]
+    },
+    {
+      "name": "Plastics",
+      "tags": [
+        "Get plastic",
+        "Update plastic"
+      ]
+    }
+  ]
+}
